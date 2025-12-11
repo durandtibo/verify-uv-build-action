@@ -1,0 +1,131 @@
+name: "Verify uv build"
+description: "Verify the uv build artifacts"
+
+author: "Thibaut Durand"
+
+branding:
+  icon: "check-circle"
+  color: "blue"
+
+inputs:
+  dist-type:
+    description: "The distribution artifact. Choose either wheel or sdist"
+    required: true
+  package-name:
+    description: "The package name"
+    required: true
+  package-extra:
+    default: ""
+    description: "The package extra"
+    required: false
+  python-version:
+    default: "3.13"
+    description: "Python version to use"
+    required: false
+
+
+runs:
+  using: "composite"
+  steps:
+    - name: Verify dist-type
+      shell: bash
+      run: |
+        if [[ "${{ inputs.dist-type }}" != "wheel" && "${{ inputs.dist-type }}" != "sdist" ]]; then
+          echo "Error: input 'dist-type' must be wheel or sdist."
+          exit 1
+        fi
+        echo "${{ inputs.dist-type }} is selected"
+
+    - name: Checkout
+      uses: actions/checkout@v6
+
+    # Install uv package manager
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        python-version: ${{ inputs.python-version }}
+        activate-environment: true
+
+    # Build the package (creates both sdist and wheel)
+    - name: Build package
+      shell: bash
+      run: |
+        uv build
+
+    # Determine which distribution file to test based on matrix
+    - name: Locate target distribution
+      shell: bash
+      id: dist
+      run: |
+        if [ "${{ matrix.dist-type }}" = "wheel" ]; then
+          TARGET=$(ls dist/*.whl | head -n1)
+        else
+          TARGET=$(ls dist/*.tar.gz | head -n1)
+        fi
+        echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+
+    # Verify py.typed marker is included (required for PEP 561 typed packages)
+    - name: Check py.typed in distribution
+      shell: bash
+      run: |
+        if [ "${{ matrix.dist-type }}" = "wheel" ]; then
+          unzip -l "${{ steps.dist.outputs.target }}" | grep py.typed
+        else
+          tar -tzf "${{ steps.dist.outputs.target }}" | grep py.typed
+        fi
+
+    # Install the built package with optional extras
+    - name: Install built package
+      shell: bash
+      run: |
+        PKG="${{ steps.dist.outputs.target }}"
+        if [ -n "${{ matrix.extra }}" ]; then
+          PKG="${PKG}[${{ matrix.extra }}]"
+        fi
+        uv pip install "$PKG"
+
+    # Validate package metadata with twine
+    - name: Check build with twine
+      shell: bash
+      run: |
+        uv pip install twine
+        twine check dist/*
+
+    # Verify package metadata is complete and correct
+    - name: Check package metadata
+      shell: bash
+      run: |
+        dev/package/check_metadata.sh
+
+    # Verify dependency tree is as expected
+    - name: Check dependency tree
+      shell: bash
+      run: |
+        dev/package/check_dependency_tree.sh
+
+    # Test basic import to ensure package is installable
+    - name: Import package
+      shell: bash
+      run: |
+        python -c "import ${{ inputs.package-name }}; print(${{ inputs.package-name }}.__version__)"
+
+    # Ensure version is not the placeholder "0.0.0"
+    - name: Check package version
+      shell: bash
+      run: |
+        python -c "import ${{ inputs.package-name }}; assert ${{ inputs.package-name }}.__version__ != '0.0.0'"
+
+    # Verify type checkers can recognize the package as typed
+    - name: Check that pyright recognizes the package as typed
+      shell: bash
+      run: |
+        uv pip install pyright
+        dev/package/check_type.sh
+
+    - name: Run some checks
+      shell: bash
+      run: |
+        python tests/package_checks.py
+
+
+
