@@ -15,7 +15,19 @@ jobs:
       max-parallel: 8
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04]
+        os:
+          [
+            ubuntu-latest,
+            ubuntu-24.04,
+            ubuntu-22.04,
+            ubuntu-24.04-arm,
+            ubuntu-22.04-arm,
+            macos-latest,
+            macos-26,
+            macos-15,
+            macos-14,
+            macos-15-intel,
+          ]
         dist-type: ["sdist", "wheel"]
         package-extra: ["", "all"]
 
@@ -30,8 +42,45 @@ jobs:
           package-name: myproject
           package-extra: ${{ matrix.package-extra }}
 
+  test-python:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      max-parallel: 8
+      fail-fast: false
+      matrix:
+        os:
+          [
+            ubuntu-latest,
+            ubuntu-24.04,
+            ubuntu-22.04,
+            ubuntu-24.04-arm,
+            ubuntu-22.04-arm,
+            macos-latest,
+            macos-26,
+            macos-15,
+            macos-14,
+            macos-15-intel,
+          ]
+        python-version:
+          ["3.14", "3.14t", "3.13", "3.13t", "3.12", "3.11", "3.10"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Verify Build
+        uses: ./
+        with:
+          package-name: myproject
+          python-version: ${{ matrix.python-version }}
+
+  #################################
+  #     Tests to check inputs     #
+  #################################
+
   invalid-dist-type:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     continue-on-error: true
     outputs:
       action_failed: ${{ steps.run_action.outcome == 'failure' }}
@@ -51,7 +100,7 @@ jobs:
         run: echo "Action failed? ${{ steps.run_action.outcome }}"
 
   verify-failure-dist-type:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: invalid-dist-type
     if: ${{ needs.invalid-dist-type.outputs.action_failed != 'true' }}
     steps:
@@ -63,8 +112,8 @@ jobs:
   #     Tests robustness to missing files     #
   #############################################
 
-  missing-all:
-    runs-on: ubuntu-24.04
+  test-missing-all:
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -77,11 +126,10 @@ jobs:
       - name: Verify Build
         uses: ./
         with:
-          dist-type: wheel
           package-name: myproject
 
-  missing-check-metadata:
-    runs-on: ubuntu-24.04
+  test-missing-check-metadata:
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -94,11 +142,10 @@ jobs:
       - name: Verify Build
         uses: ./
         with:
-          dist-type: wheel
           package-name: myproject
 
-  missing-check-dependency-tree:
-    runs-on: ubuntu-24.04
+  test-missing-check-dependency-tree:
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -111,11 +158,10 @@ jobs:
       - name: Verify Build
         uses: ./
         with:
-          dist-type: wheel
           package-name: myproject
 
-  missing-check-type:
-    runs-on: ubuntu-24.04
+  test-missing-check-type:
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -128,11 +174,10 @@ jobs:
       - name: Verify Build
         uses: ./
         with:
-          dist-type: wheel
           package-name: myproject
 
-  missing-custom-checks:
-    runs-on: ubuntu-24.04
+  test-missing-custom-checks:
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -145,5 +190,4 @@ jobs:
       - name: Verify Build
         uses: ./
         with:
-          dist-type: wheel
           package-name: myproject

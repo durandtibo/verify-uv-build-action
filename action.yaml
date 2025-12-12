@@ -8,15 +8,16 @@ branding:
   color: "blue"
 
 inputs:
-  dist-type:
-    description: "The distribution artifact. Choose either wheel or sdist"
-    required: true
   package-name:
     description: "The package name"
     required: true
   package-extra:
     default: ""
     description: "The package extra"
+    required: false
+  dist-type:
+    default: "wheel"
+    description: "The distribution artifact. Choose either wheel or sdist"
     required: false
   python-version:
     default: "3.13"
