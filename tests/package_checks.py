@@ -7,9 +7,6 @@ package meets project-specific requirements beyond standard validation.
 Usage:
     python tests/package_checks.py
 
-Exit Codes:
-    0 - All checks passed
-    1 - One or more checks failed (assertion error)
 """
 
 from __future__ import annotations
