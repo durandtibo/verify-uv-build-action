@@ -77,7 +77,7 @@ jobs:
   #     Tests to check inputs     #
   #################################
   
-  test-invalid-dist-type:
+  invalid-dist-type:
     runs-on: ubuntu-latest
     continue-on-error: true
     outputs:
