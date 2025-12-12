@@ -1,0 +1,23 @@
+name: Test Stable Action
+
+on:
+  workflow_call:
+  workflow_dispatch: # to trigger manually
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      max-parallel: 8
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04]
+
+    steps:
+      - name: Verify GitHub Workflows
+        uses: durandtibo/verify-github-workflow-action@v0.0.1

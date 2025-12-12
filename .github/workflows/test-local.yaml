@@ -1,0 +1,32 @@
+name: Test Local Action
+
+on:
+  workflow_call:
+  workflow_dispatch: # to trigger manually
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      max-parallel: 8
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04]
+        dist-type: ["sdist", "wheel"]
+        extra: ["", "all"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Verify Build
+        uses: ./
+        with:
+          dist-type: ${{ matrix.dist-type }}
+          package-name: myproject
+          package-extra: ${{ matrix.package-extra }}

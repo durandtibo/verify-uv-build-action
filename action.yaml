@@ -30,7 +30,7 @@ runs:
       shell: bash
       run: |
         if [[ "${{ inputs.dist-type }}" != "wheel" && "${{ inputs.dist-type }}" != "sdist" ]]; then
-          echo "Error: input 'dist-type' must be wheel or sdist."
+          echo "Error: input 'dist-type' must be 'wheel' or 'sdist'."
           exit 1
         fi
         echo "${{ inputs.dist-type }} is selected"
