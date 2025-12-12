@@ -19,5 +19,5 @@ jobs:
         os: [ubuntu-24.04]
 
     steps:
-      - name: Verify GitHub Workflows
-        uses: durandtibo/verify-github-workflow-action@v0.0.1
+      - name: Checkout
+        uses: actions/checkout@v6

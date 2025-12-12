@@ -30,3 +30,32 @@ jobs:
           dist-type: ${{ matrix.dist-type }}
           package-name: myproject
           package-extra: ${{ matrix.package-extra }}
+
+  invalid-dist-type:
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    outputs:
+      action_failed: ${{ steps.run_action.outcome == 'failure' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Call composite action with invalid value
+        id: run_action
+        uses: ./
+        with:
+          dist-type: tar
+          package-name: myproject
+        continue-on-error: true
+
+      - name: Report failure detection
+        run: echo "Action failed? ${{ steps.run_action.outcome }}"
+
+  verify-failure-dist-type:
+    runs-on: ubuntu-24.04
+    needs: invalid-dist-type
+    if: ${{ needs.invalid-dist-type.outputs.action_failed != 'true' }}
+    steps:
+      - run: |
+          echo "❌ Composite action did NOT fail with invalid input (but should)."
+          exit 1
