@@ -149,9 +149,7 @@ runs:
     - name: Check package version
       shell: bash
       run: |
-        VERSION_CHECK="import ${{ inputs.package-name }}; "
-        VERSION_CHECK+="assert ${{ inputs.package-name }}.__version__ != '0.0.0'"
-        python -c "$VERSION_CHECK"
+        python -c "import ${{ inputs.package-name }}; assert ${{ inputs.package-name }}.__version__ != '0.0.0'"
         echo "✅ package version is not the placeholder "0.0.0""
 
     # Step 13: Attempt to install pyright (optional)

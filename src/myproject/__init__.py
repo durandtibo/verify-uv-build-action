@@ -2,6 +2,7 @@ r"""Root package for myproject.
 
 This is a test package used to validate the verify-uv-build-action GitHub Action.
 It demonstrates proper package structure including:
+
 - Version management via importlib.metadata
 - Type hints with py.typed marker
 - Standard package metadata
