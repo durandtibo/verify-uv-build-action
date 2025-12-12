@@ -1,5 +1,22 @@
 #!/usr/bin/env bash
 
+# check_dependency_tree.sh - Validate package dependency tree
+#
+# Description:
+#   Verifies that the package dependency tree matches expected structure.
+#   Checks that dependencies are installed with correct version requirements.
+#
+# Usage:
+#   ./check_dependency_tree.sh
+#
+# Requirements:
+#   - uv must be installed
+#   - Package must be installed in the current environment
+#
+# Exit Codes:
+#   0 - Dependency tree validation passed
+#   1 - Dependency tree validation failed
+
 set -euo pipefail
 
 OUTPUT=$(uv pip tree --package myproject --show-version-specifiers)

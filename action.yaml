@@ -27,6 +27,8 @@ inputs:
 runs:
   using: "composite"
   steps:
+    # Step 1: Validate dist-type input
+    # Ensures only valid values (wheel or sdist) are accepted to prevent errors
     - name: Verify dist-type
       shell: bash
       run: |
@@ -36,20 +38,24 @@ runs:
         fi
         echo "${{ inputs.dist-type }} is selected"
 
-    # Install uv package manager
+    # Step 2: Install uv package manager
+    # Sets up uv with the specified Python version for building and testing
     - name: Install uv
       uses: astral-sh/setup-uv@v7
       with:
         python-version: ${{ inputs.python-version }}
         activate-environment: true
 
-    # Build the package (creates both sdist and wheel)
+    # Step 3: Build the package
+    # Creates both sdist and wheel distributions using uv build
     - name: Build package
       shell: bash
       run: |
         uv build
 
-    # Determine which distribution file to test based on matrix
+    # Step 4: Locate the target distribution file
+    # Determines which distribution file to test based on the dist-type input
+    # Sets an output variable for use in subsequent steps
     - name: Locate target distribution
       shell: bash
       id: dist
@@ -63,7 +69,9 @@ runs:
         echo "$TARGET"
         echo "target=$TARGET" >> "$GITHUB_OUTPUT"
 
-    # Verify py.typed marker is included (required for PEP 561 typed packages)
+    # Step 5: Verify py.typed marker exists
+    # Checks that the distribution includes py.typed marker (PEP 561 requirement)
+    # This is essential for typed packages to work correctly with type checkers
     - name: Check py.typed in distribution
       shell: bash
       run: |
@@ -74,7 +82,9 @@ runs:
         fi
         $TOOL "${{ steps.dist.outputs.target }}" | grep py.typed
 
-    # Install the built package with optional extras
+    # Step 6: Install the built package
+    # Installs the distribution with optional extras if specified
+    # This validates that the package is installable
     - name: Install built package
       shell: bash
       run: |
@@ -84,6 +94,9 @@ runs:
         fi
         uv pip install "$PKG"
 
+    # Step 7: Attempt to install twine
+    # Tries to install twine for metadata validation
+    # Uses continue-on-error since twine may not be available in all environments
     - name: Try install twine
       id: install-twine
       shell: bash
@@ -91,7 +104,9 @@ runs:
       run: |
         uv pip install twine
 
-    # Validate package metadata with twine
+    # Step 8: Validate package metadata with twine
+    # Runs twine check to validate package metadata compliance with PyPI standards
+    # Only runs if twine installation succeeded
     - name: Twine check
       shell: bash
       if: ${{ steps.install-twine.outcome == 'success' }}
@@ -99,7 +114,9 @@ runs:
         twine check dist/*
         echo "✅ twine check passed"
 
-    # Verify package metadata is complete and correct
+    # Step 9: Run custom metadata checks (optional)
+    # Executes project-specific metadata validation script if it exists
+    # Allows projects to add custom metadata requirements
     - name: Check package metadata
       shell: bash
       if: ${{ hashFiles('dev/package/check_metadata.sh') != '' }}
@@ -107,7 +124,9 @@ runs:
         dev/package/check_metadata.sh
         echo "✅ Metadata checks passed"
 
-    # Verify dependency tree is as expected
+    # Step 10: Verify dependency tree (optional)
+    # Validates the package dependency tree structure if script exists
+    # Ensures dependencies are correctly specified and installed
     - name: Check dependency tree
       shell: bash
       if: ${{ hashFiles('dev/package/check_dependency_tree.sh') != '' }}
@@ -115,20 +134,27 @@ runs:
         dev/package/check_dependency_tree.sh
         echo "✅ Dependency tree checks passed"
 
-    # Test basic import to ensure package is installable
+    # Step 11: Test package import
+    # Verifies the package can be imported and has a __version__ attribute
+    # This is a basic smoke test for package installability
     - name: Import package
       shell: bash
       run: |
         python -c "import ${{ inputs.package-name }}; print(${{ inputs.package-name }}.__version__)"
         echo "✅ package version exists"
 
-    # Ensure version is not the placeholder "0.0.0"
+    # Step 12: Validate package version
+    # Ensures the version is not the default placeholder "0.0.0"
+    # Catches common packaging mistakes where version isn't set properly
     - name: Check package version
       shell: bash
       run: |
         python -c "import ${{ inputs.package-name }}; assert ${{ inputs.package-name }}.__version__ != '0.0.0'"
         echo "✅ package version is not the placeholder "0.0.0""
 
+    # Step 13: Attempt to install pyright (optional)
+    # Tries to install pyright for type checking validation
+    # Only attempts if type check script exists
     - name: Try install pyright
       id: install-pyright
       shell: bash
@@ -137,6 +163,9 @@ runs:
       run: |
         uv pip install pyright
 
+    # Step 14: Validate type hints (optional)
+    # Runs type hint validation using pyright if script exists and pyright installed
+    # Ensures package properly exposes type information
     - name: Check package has type hints
       shell: bash
       if: ${{ steps.install-pyright.outcome == 'success' }}
@@ -144,6 +173,9 @@ runs:
         dev/package/check_type.sh
         echo "✅ package has type hints"
 
+    # Step 15: Run custom checks (optional)
+    # Executes any project-specific validation checks if script exists
+    # Provides flexibility for projects to add custom requirements
     - name: Run some custom checks
       shell: bash
       if: ${{ hashFiles('dev/package/custom_checks.sh') != '' }}
