@@ -46,6 +46,7 @@ jobs:
         uses: ./
         with:
           dist-type: wheel
+          package-name: myproject
 
   verify-failure-dist-type:
     name: Verify failure for invalid dist-type
