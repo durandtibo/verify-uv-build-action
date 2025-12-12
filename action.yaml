@@ -62,6 +62,7 @@ runs:
           EXTENSION="tar.gz"
         fi
         TARGET=$(ls dist/*.$EXTENSION | head -n1)
+        echo "$TARGET"
         echo "target=$TARGET" >> "$GITHUB_OUTPUT"
 
     # Verify py.typed marker is included (required for PEP 561 typed packages)
@@ -69,11 +70,11 @@ runs:
       shell: bash
       run: |
         if [ "${{ matrix.dist-type }}" = "wheel" ]; then
-          COMMAND="unzip -l"
+          TOOL="unzip -l"
         else
-          COMMAND="tar -tzf"
+          TOOL="tar -tzf"
         fi
-        $COMMAND "${{ steps.dist.outputs.target }}" | grep py.typed
+        $TOOL "${{ steps.dist.outputs.target }}" | grep py.typed
 
     # Install the built package with optional extras
     - name: Install built package
