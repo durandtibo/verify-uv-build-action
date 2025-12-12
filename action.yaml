@@ -23,7 +23,6 @@ inputs:
     description: "Python version to use"
     required: false
 
-
 runs:
   using: "composite"
   steps:
