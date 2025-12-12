@@ -64,6 +64,40 @@ jobs:
   #     Tests robustness to missing files     #
   #############################################
 
+  missing-all:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Remove custom checks file
+        run: |
+          rm dev/package/*
+
+      - name: Verify Build
+        uses: ./
+        with:
+          dist-type: wheel
+          package-name: myproject
+
+  missing-check-type:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Remove custom checks file
+        run: |
+          rm dev/package/check_type.sh
+
+      - name: Verify Build
+        uses: ./
+        with:
+          dist-type: wheel
+          package-name: myproject
+
   missing-custom-checks:
     runs-on: ubuntu-24.04
     timeout-minutes: 10

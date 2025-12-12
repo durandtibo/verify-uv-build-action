@@ -114,12 +114,13 @@ runs:
       run: |
         python -c "import ${{ inputs.package-name }}; assert ${{ inputs.package-name }}.__version__ != '0.0.0'"
 
-    # Verify type checkers can recognize the package as typed
-    - name: Check that pyright recognizes the package as typed
+    - name: Check package has type hints
       shell: bash
+      if: ${{ hashFiles('dev/package/check_type.sh') != '' }}
       run: |
         uv pip install pyright
         dev/package/check_type.sh
+        echo "✅ package has type hints"
 
     - name: Run some custom checks
       shell: bash
