@@ -1,0 +1,66 @@
+name: 🐛 Bug Report
+description: Create a report to help us reproduce and fix the bug
+
+body:
+  - type: markdown
+    attributes:
+      value: >
+        #### Before submitting a bug, please make sure the issue hasn't been already addressed
+        by searching through [the existing and past issues]
+        (https://github.com/durandtibo/verify-uv-build-action/issues?q=is%3Aissue).
+  - type: textarea
+    attributes:
+      label: 🐛 Describe the bug
+      description: |
+        Please provide a clear and concise description of what the bug is.
+
+        If relevant, add a minimal example so that we can reproduce the error by running the action.
+        It is very important for the example to be as succinct (minimal) as possible,
+        so please take time to trim down any irrelevant configuration to help us debug efficiently.
+
+        Please include:
+        - Your workflow YAML configuration
+        - The action logs showing the error
+        - Expected behavior vs actual behavior
+
+        If the workflow is too long, feel free to put it in a public gist
+        and link it in the issue: https://gist.github.com.
+
+        Please also paste or describe the results you observe instead of the expected results.
+        If you observe an error, please paste the error message including the **full** output
+        from the action logs.
+        It may be relevant to wrap output in ```` ```triple quotes blocks``` ````.
+      placeholder: |
+        A clear and concise description of what the bug is.
+
+        ```yaml
+        # Your workflow configuration
+        - uses: durandtibo/verify-uv-build-action@v1.7
+          with:
+            package-name: myproject
+        ```
+
+        ```
+        The error message or unexpected output from the action logs.
+        ```
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Environment
+      description: |
+        Please provide information about your environment:
+        - Action version (e.g., v1.7)
+        - Runner OS (e.g., ubuntu-latest, macos-latest)
+        - GitHub CLI version (run `gh --version`)
+        - Any other relevant environment details
+      placeholder: |
+        - Action version: v1.7
+        - Runner: ubuntu-latest
+        - GitHub CLI: gh version 2.40.0
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: >
+        Thanks for contributing 🎉!
