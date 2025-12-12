@@ -124,7 +124,7 @@ runs:
         uv pip install pyright
         dev/package/check_type.sh
 
-    - name: Run some checks
+    - name: Run some custom checks
       shell: bash
       run: |
-        python tests/package_checks.py
+        dev/package/check_custom.sh
