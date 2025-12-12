@@ -57,10 +57,11 @@ runs:
       id: dist
       run: |
         if [ "${{ matrix.dist-type }}" = "wheel" ]; then
-          TARGET=$(ls dist/*.whl | head -n1)
+          EXTENSION="whl"
         else
-          TARGET=$(ls dist/*.tar.gz | head -n1)
+          EXTENSION="tar.gz"
         fi
+        TARGET=$(ls dist/*.$EXTENSION | head -n1)
         echo "target=$TARGET" >> "$GITHUB_OUTPUT"
 
     # Verify py.typed marker is included (required for PEP 561 typed packages)
