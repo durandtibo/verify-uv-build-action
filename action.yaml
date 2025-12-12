@@ -89,6 +89,7 @@ runs:
       run: |
         uv pip install twine
         twine check dist/*
+        echo "✅ twine check passed"
 
     # Verify package metadata is complete and correct
     - name: Check package metadata
@@ -111,12 +112,14 @@ runs:
       shell: bash
       run: |
         python -c "import ${{ inputs.package-name }}; print(${{ inputs.package-name }}.__version__)"
+        echo "✅ package version exists"
 
     # Ensure version is not the placeholder "0.0.0"
     - name: Check package version
       shell: bash
       run: |
         python -c "import ${{ inputs.package-name }}; assert ${{ inputs.package-name }}.__version__ != '0.0.0'"
+        echo "✅ package version is not the placeholder "0.0.0""
 
     - name: Check package has type hints
       shell: bash
