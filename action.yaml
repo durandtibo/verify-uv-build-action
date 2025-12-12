@@ -57,10 +57,12 @@ runs:
       id: dist
       run: |
         if [ "${{ matrix.dist-type }}" = "wheel" ]; then
-          TARGET=$(ls dist/*.whl | head -n1)
+          EXTENSION="whl"
         else
-          TARGET=$(ls dist/*.tar.gz | head -n1)
+          EXTENSION="tar.gz"
         fi
+        TARGET=$(ls dist/*.$EXTENSION | head -n1)
+        echo "$TARGET"
         echo "target=$TARGET" >> "$GITHUB_OUTPUT"
 
     # Verify py.typed marker is included (required for PEP 561 typed packages)
@@ -68,10 +70,11 @@ runs:
       shell: bash
       run: |
         if [ "${{ matrix.dist-type }}" = "wheel" ]; then
-          unzip -l "${{ steps.dist.outputs.target }}" | grep py.typed
+          TOOL="unzip -l"
         else
-          tar -tzf "${{ steps.dist.outputs.target }}" | grep py.typed
+          TOOL="tar -tzf"
         fi
+        $TOOL "${{ steps.dist.outputs.target }}" | grep py.typed
 
     # Install the built package with optional extras
     - name: Install built package
@@ -121,7 +124,7 @@ runs:
         uv pip install pyright
         dev/package/check_type.sh
 
-    - name: Run some checks
+    - name: Run some custom checks
       shell: bash
       run: |
-        python tests/package_checks.py
+        dev/package/check_custom.sh
