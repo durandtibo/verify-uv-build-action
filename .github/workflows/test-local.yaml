@@ -44,7 +44,7 @@ jobs:
         id: run_action
         uses: ./
         with:
-          dist-type: tar
+          dist-type: wheel
           package-name: myproject
         continue-on-error: true
 
