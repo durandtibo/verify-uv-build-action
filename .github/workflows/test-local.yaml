@@ -45,7 +45,7 @@ jobs:
         id: run_action
         uses: ./
         with:
-          dist-type: wheel
+          dist-type: tar
           package-name: myproject
 
   verify-failure-dist-type:
