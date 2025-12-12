@@ -1,5 +1,24 @@
 #!/usr/bin/env bash
 
+# check_type.sh - Validate package type hints
+#
+# Description:
+#   Verifies that the package includes proper type hints by running pyright
+#   on a simple import test. This ensures the package is properly typed and
+#   the py.typed marker is working correctly.
+#
+# Usage:
+#   ./check_type.sh
+#
+# Requirements:
+#   - pyright must be installed
+#   - Package must be installed in the current environment
+#   - Package must include py.typed marker file
+#
+# Exit Codes:
+#   0 - Type hints validation passed
+#   1 - Type hints validation failed
+
 set -euo pipefail
 
 PYRIGHT_DIR=tmp/pyright_check
