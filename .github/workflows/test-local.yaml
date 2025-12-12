@@ -32,7 +32,6 @@ jobs:
           package-extra: ${{ matrix.package-extra }}
 
   invalid-dist-type:
-    name: Invalid dist-type
     runs-on: ubuntu-24.04
     continue-on-error: true
     outputs:
@@ -49,7 +48,6 @@ jobs:
           package-name: myproject
 
   verify-failure-dist-type:
-    name: Verify failure for invalid dist-type
     runs-on: ubuntu-24.04
     needs: invalid-dist-type
     if: ${{ needs.invalid-dist-type.outputs.failed != 'failure' }}
