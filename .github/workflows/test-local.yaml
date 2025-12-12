@@ -38,6 +38,9 @@ jobs:
     outputs:
       failed: ${{ steps.run_action.outcome }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
       - name: Call composite action with invalid value
         id: run_action
         uses: ./
