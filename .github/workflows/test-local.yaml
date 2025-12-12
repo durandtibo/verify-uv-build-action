@@ -59,3 +59,24 @@ jobs:
       - run: |
           echo "❌ Composite action did NOT fail with invalid input (but should)."
           exit 1
+
+  #############################################
+  #     Tests robustness to missing files     #
+  #############################################
+
+  missing-custom-checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Remove custom checks file
+        run: |
+          rm dev/package/custom_checks.sh
+
+      - name: Verify Build
+        uses: ./
+        with:
+          dist-type: wheel
+          package-name: myproject

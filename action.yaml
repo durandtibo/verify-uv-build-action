@@ -126,7 +126,7 @@ runs:
 
     - name: Run some custom checks
       shell: bash
-      if: ${{ hashFiles('dev/package/check_custom.sh') != '' }}
+      if: ${{ hashFiles('dev/package/custom_checks.sh') != '' }}
       run: |
-        dev/package/check_custom.sh
-        echo "✅ Custom checks passed."
+        dev/package/custom_checks.sh
+        echo "✅ Custom checks passed"
