@@ -68,10 +68,11 @@ runs:
       shell: bash
       run: |
         if [ "${{ matrix.dist-type }}" = "wheel" ]; then
-          unzip -l "${{ steps.dist.outputs.target }}" | grep py.typed
+          COMMAND="unzip -l"
         else
-          tar -tzf "${{ steps.dist.outputs.target }}" | grep py.typed
+          COMMAND="tar -tzf"
         fi
+        $COMMAND "${{ steps.dist.outputs.target }}" | grep py.typed
 
     # Install the built package with optional extras
     - name: Install built package
