@@ -54,7 +54,7 @@ runs:
       shell: bash
       id: dist
       run: |
-        if [ "${{ matrix.dist-type }}" = "wheel" ]; then
+        if [ "${{ inputs.dist-type }}" = "wheel" ]; then
           EXTENSION="whl"
         else
           EXTENSION="tar.gz"
@@ -67,7 +67,7 @@ runs:
     - name: Check py.typed in distribution
       shell: bash
       run: |
-        if [ "${{ matrix.dist-type }}" = "wheel" ]; then
+        if [ "${{ inputs.dist-type }}" = "wheel" ]; then
           TOOL="unzip -l"
         else
           TOOL="tar -tzf"
