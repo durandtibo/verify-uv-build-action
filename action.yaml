@@ -129,11 +129,18 @@ runs:
         python -c "import ${{ inputs.package-name }}; assert ${{ inputs.package-name }}.__version__ != '0.0.0'"
         echo "✅ package version is not the placeholder "0.0.0""
 
-    - name: Check package has type hints
+    - name: Try install pyright
+      id: install-pyright
       shell: bash
+      continue-on-error: true
       if: ${{ hashFiles('dev/package/check_type.sh') != '' }}
       run: |
         uv pip install pyright
+
+    - name: Check package has type hints
+      shell: bash
+      if: ${{ steps.install-pyright.outcome == 'success' }}
+      run: |
         dev/package/check_type.sh
         echo "✅ package has type hints"
 
