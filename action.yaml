@@ -35,9 +35,6 @@ runs:
         fi
         echo "${{ inputs.dist-type }} is selected"
 
-    - name: Checkout
-      uses: actions/checkout@v6
-
     # Install uv package manager
     - name: Install uv
       uses: astral-sh/setup-uv@v7
