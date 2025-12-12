@@ -45,7 +45,7 @@ jobs:
         id: run_action
         uses: ./
         with:
-          dist-type: tar
+          dist-type: wheel
 
   verify-failure-dist-type:
     name: Verify failure for invalid dist-type
