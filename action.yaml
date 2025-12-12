@@ -35,9 +35,6 @@ runs:
         fi
         echo "${{ inputs.dist-type }} is selected"
 
-    - name: Checkout
-      uses: actions/checkout@v6
-
     # Install uv package manager
     - name: Install uv
       uses: astral-sh/setup-uv@v7
@@ -92,39 +89,49 @@ runs:
       run: |
         uv pip install twine
         twine check dist/*
+        echo "✅ twine check passed"
 
     # Verify package metadata is complete and correct
     - name: Check package metadata
       shell: bash
+      if: ${{ hashFiles('dev/package/check_metadata.sh') != '' }}
       run: |
         dev/package/check_metadata.sh
+        echo "✅ Metadata checks passed"
 
     # Verify dependency tree is as expected
     - name: Check dependency tree
       shell: bash
+      if: ${{ hashFiles('dev/package/check_dependency_tree.sh') != '' }}
       run: |
         dev/package/check_dependency_tree.sh
+        echo "✅ Dependency tree checks passed"
 
     # Test basic import to ensure package is installable
     - name: Import package
       shell: bash
       run: |
         python -c "import ${{ inputs.package-name }}; print(${{ inputs.package-name }}.__version__)"
+        echo "✅ package version exists"
 
     # Ensure version is not the placeholder "0.0.0"
     - name: Check package version
       shell: bash
       run: |
         python -c "import ${{ inputs.package-name }}; assert ${{ inputs.package-name }}.__version__ != '0.0.0'"
+        echo "✅ package version is not the placeholder "0.0.0""
 
-    # Verify type checkers can recognize the package as typed
-    - name: Check that pyright recognizes the package as typed
+    - name: Check package has type hints
       shell: bash
+      if: ${{ hashFiles('dev/package/check_type.sh') != '' }}
       run: |
         uv pip install pyright
         dev/package/check_type.sh
+        echo "✅ package has type hints"
 
     - name: Run some custom checks
       shell: bash
+      if: ${{ hashFiles('dev/package/custom_checks.sh') != '' }}
       run: |
-        dev/package/check_custom.sh
+        dev/package/custom_checks.sh
+        echo "✅ Custom checks passed"
