@@ -64,12 +64,12 @@ jobs:
 
 ## Inputs
 
-| Input            | Required | Default  | Description                                           |
-| ---------------- | -------- | -------- | ----------------------------------------------------- |
-| `package-name`   | Yes      | -        | The name of the package to verify                     |
-| `package-extra`  | No       | `""`     | Optional package extras to install (e.g., `dev, test`)|
-| `dist-type`      | No       | `wheel`  | Distribution type to test: `wheel` or `sdist`         |
-| `python-version` | No       | `3.13`   | Python version to use for testing                     |
+| Input            | Required | Default | Description                                            |
+| ---------------- | -------- | ------- | ------------------------------------------------------ |
+| `package-name`   | Yes      | -       | The name of the package to verify                      |
+| `package-extra`  | No       | `""`    | Optional package extras to install (e.g., `dev, test`) |
+| `dist-type`      | No       | `wheel` | Distribution type to test: `wheel` or `sdist`          |
+| `python-version` | No       | `3.13`  | Python version to use for testing                      |
 
 ## What Does This Action Do?
 

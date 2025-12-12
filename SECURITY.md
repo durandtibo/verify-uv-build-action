@@ -25,13 +25,13 @@ For maximum security in your workflows:
 ### Option 2: Pin to a Commit SHA (Maximum Security)
 
 ```yaml
-- uses: durandtibo/verify-uv-build-action@a1b2c3d4  # Pin to specific commit
+- uses: durandtibo/verify-uv-build-action@a1b2c3d4 # Pin to specific commit
 ```
 
 ### Option 3: Use Latest (Not Recommended for Production)
 
 ```yaml
-- uses: durandtibo/verify-uv-build-action@main  # Gets latest changes
+- uses: durandtibo/verify-uv-build-action@main # Gets latest changes
 ```
 
 **Warning**: Using `@main` can introduce unexpected changes. Only use in
@@ -101,7 +101,7 @@ When using this action in your workflows:
 
    ```yaml
    permissions:
-     contents: read  # Only what's needed
+     contents: read # Only what's needed
    ```
 
 5. **Review Changes**: Check changelogs before updating versions
