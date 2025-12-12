@@ -71,9 +71,43 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Remove custom checks file
+      - name: Remove scripts
         run: |
           rm dev/package/*
+
+      - name: Verify Build
+        uses: ./
+        with:
+          dist-type: wheel
+          package-name: myproject
+
+  missing-check-metadata:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Remove check metadata script
+        run: |
+          rm dev/package/check_metadata.sh
+
+      - name: Verify Build
+        uses: ./
+        with:
+          dist-type: wheel
+          package-name: myproject
+
+  missing-check-dependency-tree:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Remove check dependency tree script
+        run: |
+          rm dev/package/check_dependency_tree.sh
 
       - name: Verify Build
         uses: ./
@@ -88,7 +122,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Remove custom checks file
+      - name: Remove check type script
         run: |
           rm dev/package/check_type.sh
 
@@ -105,7 +139,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Remove custom checks file
+      - name: Remove custom checks script
         run: |
           rm dev/package/custom_checks.sh
 

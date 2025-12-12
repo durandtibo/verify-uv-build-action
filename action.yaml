@@ -93,14 +93,18 @@ runs:
     # Verify package metadata is complete and correct
     - name: Check package metadata
       shell: bash
+      if: ${{ hashFiles('dev/package/check_metadata.sh') != '' }}
       run: |
         dev/package/check_metadata.sh
+        echo "✅ Metadata checks passed"
 
     # Verify dependency tree is as expected
     - name: Check dependency tree
       shell: bash
+      if: ${{ hashFiles('dev/package/check_dependency_tree.sh') != '' }}
       run: |
         dev/package/check_dependency_tree.sh
+        echo "✅ Dependency tree checks passed"
 
     # Test basic import to ensure package is installable
     - name: Import package
