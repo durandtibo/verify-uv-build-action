@@ -87,7 +87,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ### Repository Structure
 
-```
+```text
 verify-uv-build-action/
 ├── .github/
 │   ├── workflows/        # GitHub Actions workflows
@@ -218,7 +218,7 @@ echo "$METADATA" | grep -q "Name: myproject"
 
 Write clear, descriptive commit messages:
 
-```
+```text
 Short summary (50 chars or less)
 
 More detailed explanation if needed. Wrap at 72 characters.

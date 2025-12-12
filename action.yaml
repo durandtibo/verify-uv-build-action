@@ -145,11 +145,13 @@ runs:
 
     # Step 12: Validate package version
     # Ensures the version is not the default placeholder "0.0.0"
-    # Catches common packaging mistakes where version isn't properly set
+    # Catches common packaging mistakes where version isn't set properly
     - name: Check package version
       shell: bash
       run: |
-        python -c "import ${{ inputs.package-name }}; assert ${{ inputs.package-name }}.__version__ != '0.0.0'"
+        VERSION_CHECK="import ${{ inputs.package-name }}; "
+        VERSION_CHECK+="assert ${{ inputs.package-name }}.__version__ != '0.0.0'"
+        python -c "$VERSION_CHECK"
         echo "✅ package version is not the placeholder "0.0.0""
 
     # Step 13: Attempt to install pyright (optional)
