@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-24.04
     continue-on-error: true
     outputs:
-      failed: ${{ steps.run_action.outcome }}
+      action_failed: ${{ steps.run_action.outcome == 'failure' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -46,12 +46,16 @@ jobs:
         with:
           dist-type: tar
           package-name: myproject
+        continue-on-error: true
+
+      - name: Report failure detection
+        run: echo "Action failed? ${{ steps.run_action.outcome }}"
 
   verify-failure-dist-type:
     runs-on: ubuntu-24.04
     needs: invalid-dist-type
-    if: ${{ needs.invalid-dist-type.outputs.failed != 'failure' }}
+    if: ${{ needs.invalid-dist-type.outputs.action_failed != 'true' }}
     steps:
       - run: |
-          echo "❌ The action did NOT fail when it should have."
+          echo "❌ Composite action did NOT fail with invalid input (but should)."
           exit 1
