@@ -124,6 +124,4 @@ runs:
     - name: Run some checks
       shell: bash
       run: |
-        ls -l
-        ls -l tests/
         python tests/package_checks.py
