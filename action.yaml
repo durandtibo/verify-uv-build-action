@@ -47,6 +47,7 @@ runs:
       uses: astral-sh/setup-uv@v7
       with:
         python-version: ${{ inputs.python-version }}
+        activate-environment: true
 
     # Step 3: Build the package
     - name: Build package
