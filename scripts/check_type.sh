@@ -30,9 +30,9 @@ set -euo pipefail
 
 # Parse arguments
 if [ $# -eq 0 ]; then
-  echo "Error: Package name is required" >&2
-  echo "Usage: $0 <package_name>" >&2
-  exit 2
+	echo "Error: Package name is required" >&2
+	echo "Usage: $0 <package_name>" >&2
+	exit 2
 fi
 
 PACKAGE_NAME="$1"
@@ -41,9 +41,9 @@ echo "🔍 Verifying type completeness for package: ${PACKAGE_NAME}"
 echo ""
 
 run_and_show() {
-    echo "$ $*"
-    echo ""
-    "$@"
+	echo "$ $*"
+	echo ""
+	"$@"
 }
 
 # Use pyright's --verifytypes to check type completeness
