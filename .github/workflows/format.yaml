@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 jobs:
-  markdown:
+  format:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -20,24 +20,28 @@ jobs:
         with:
           node-version: "latest"
 
-      - name: Install markdownlint-cli
-        run: npm install -g markdownlint-cli
+      - name: Install dependencies
+        run: |
+          echo "📦 Installing all dependencies..."
+          npm install -g markdownlint-cli
+          sudo apt-get update
+          sudo apt-get install -y shellcheck yamllint
+          sudo snap install shfmt
 
       - name: Run markdownlint
-        run: markdownlint -- **/*.md
-
-  yaml:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v6
-
-      - name: Install yamllint
         run: |
-          sudo apt-get update
-          sudo apt-get install -y yamllint
+          echo "📝 Running markdownlint..."
+          markdownlint -- **/*.md
+
+      - name: Run ShellCheck
+        run: |
+          echo "🐚 Running ShellCheck..."
+          shellcheck -- **/*.sh || exit 1
+
+      - name: Run shfmt
+        run: |
+          echo "✨ Checking formatting using shfmt..."
+          shfmt -d -- **/*.sh
 
       - name: Run yamllint
         run: |
