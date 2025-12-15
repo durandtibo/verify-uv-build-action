@@ -9,16 +9,25 @@ branding:
 
 inputs:
   package-name:
-    description: "The package name"
+    description: |
+      The name used to install the package. It is also known as distribution name.
+      For example, it is the name on PyPI.
     required: true
+  module-name:
+    description: |
+      The name used in import statements. This input is optional and
+      the package name is used if no module name is provided.
+      The hyphens in the package name will be replaced by underscores.
+    required: false
+    default: ""
   package-extra:
     description: "The package extra to install"
     required: false
     default: ""
   package-dependencies:
     description: |
-      "A list of dependencies to check in the build in the format
-      <dependency1> <dependency2> <dependency3> ..."
+      "A list of comma-separated list of required dependencies
+      <dependency1>,<dependency2>,<dependency3> ..."
     required: false
     default: ""
   dist-type:
@@ -132,17 +141,16 @@ runs:
           echo "⚠️  Twine not available, skipping metadata validation"
         fi
 
-    # Step 8: Run custom metadata checks (optional)
+    # Step 8: Run custom metadata checks
     - name: Check package metadata
       shell: bash
-      if: hashFiles('dev/package/check_metadata.sh') != ''
       run: |
         set -euo pipefail
-        echo "🔍 Running custom metadata checks..."
-        bash dev/package/check_metadata.sh
+        echo "🔍 Checking package metadata..."
+        bash $GITHUB_ACTION_PATH/scripts/check_metadata.sh ${{ inputs.package-name }} ${{ inputs.package-dependencies }}
         echo "✅ Metadata checks passed"
 
-    # Step 9: Verify dependency tree (optional)
+    # Step 9: Verify dependency tree
     - name: Check dependency tree
       shell: bash
       run: |
@@ -151,6 +159,17 @@ runs:
         bash $GITHUB_ACTION_PATH/scripts/check_dependency_tree.sh ${{ inputs.package-name }} ${{ inputs.package-dependencies }}
         echo "✅ Dependency tree checks passed"
 
+    - name: Find module name
+      shell: bash
+      run: |
+        MODULE_NAME=${{ inputs.module-name }}
+        if [ -z "$MODULE_NAME" ]; then
+          PACKAGE_NAME=${{ inputs.package-name }}
+          MODULE_NAME="${PACKAGE_NAME//-/_}"
+        fi
+        echo "MODULE_NAME=$MODULE_NAME"
+        echo "MODULE_NAME=$MODULE_NAME" >> $GITHUB_ENV
+
     # Step 10: Test package import and version
     - name: Verify package import and version
       shell: bash
@@ -158,7 +177,7 @@ runs:
         set -euo pipefail
         echo "🔍 Testing package import..."
 
-        VERSION=$(python -c "import ${{ inputs.package-name }}; print(${{ inputs.package-name }}.__version__)")
+        VERSION=$(python -c "import $MODULE_NAME; print($MODULE_NAME.__version__)")
         echo "📌 Package version: $VERSION"
 
         if [ "$VERSION" = "0.0.0" ]; then
@@ -168,26 +187,14 @@ runs:
 
         echo "✅ Package imported successfully with valid version"
 
-    # Step 11: Validate type hints (optional)
+    # Step 11: Validate type hints
     - name: Check package type hints
       shell: bash
-      if: hashFiles('dev/package/check_type.sh') != ''
       run: |
         set -euo pipefail
         if uv pip install pyright 2>/dev/null; then
           echo "🔍 Running type hint validation..."
-          bash dev/package/check_type.sh
-          echo "✅ Type hints validated"
+          $GITHUB_ACTION_PATH/scripts/check_type.sh $MODULE_NAME
         else
           echo "⚠️  Pyright not available, skipping type check"
         fi
-
-    # Step 12: Run custom checks (optional)
-    - name: Run custom checks
-      shell: bash
-      if: hashFiles('dev/package/custom_checks.sh') != ''
-      run: |
-        set -euo pipefail
-        echo "🔍 Running custom checks..."
-        bash dev/package/custom_checks.sh
-        echo "✅ Custom checks passed"
