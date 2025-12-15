@@ -9,8 +9,17 @@ branding:
 
 inputs:
   package-name:
-    description: "The package name"
+    description: |
+      The name used to install the package. It is also known as distribution name.
+      For example, it is the name on PyPI.
     required: true
+  module-name:
+    description: |
+      The name used in import statements. This input is optional and
+      the package name is used if no module name is provided.
+      The hyphens in the package name will be replaced by underscores.
+    required: false
+    default: ""
   package-extra:
     description: "The package extra to install"
     required: false
@@ -37,6 +46,18 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Set environment variables
+      shell: bash
+      run: |
+        PACKAGE_NAME=${{ inputs.package-name }}
+        echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
+
+        MODULE_NAME=${{ inputs.module-name }}
+        if [ -z "$MODULE_NAME" ]; then
+          MODULE_NAME="${PACKAGE_NAME//-/_}"
+        fi
+        echo "MODULE_NAME=$MODULE_NAME" >> $GITHUB_ENV
+
     # Step 1: Validate dist-type input
     - name: Verify dist-type
       shell: bash
