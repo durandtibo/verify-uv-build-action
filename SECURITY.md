@@ -142,10 +142,7 @@ This action:
 
 To mitigate risks:
 
-- Package names are validated before use
-- Scripts must be explicitly placed in `dev/package/` directory
 - All operations run in isolated GitHub Actions runners
-- Custom scripts are only executed if they exist (opt-in)
 
 ## Security Features
 
