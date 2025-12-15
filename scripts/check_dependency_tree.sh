@@ -17,7 +17,7 @@
 #     dependencies   - Optional comma-separated list of required dependencies
 #
 #   Examples:
-#     ./check_dependency_tree.sh hatchling-autoextras-hook hatchling
+#     ./check_dependency_tree.sh mypackage requests
 #     ./check_dependency_tree.sh mypackage "requests,flask,numpy"
 #     ./check_dependency_tree.sh mypackage "requests, flask, numpy"
 #

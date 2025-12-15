@@ -15,7 +15,19 @@ jobs:
       max-parallel: 8
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04]
+        os:
+          [
+            ubuntu-latest,
+            ubuntu-24.04,
+            ubuntu-22.04,
+            ubuntu-24.04-arm,
+            ubuntu-22.04-arm,
+            macos-latest,
+            macos-26,
+            macos-15,
+            macos-14,
+            macos-15-intel,
+          ]
         dist-type: ["sdist", "wheel"]
         package-extra: ["", "all"]
 
@@ -31,38 +43,38 @@ jobs:
           package-extra: ${{ matrix.package-extra }}
           package-dependencies: coola
 
-  #  test-python:
-  #    runs-on: ${{ matrix.os }}
-  #    timeout-minutes: 10
-  #    strategy:
-  #      max-parallel: 8
-  #      fail-fast: false
-  #      matrix:
-  #        os:
-  #          [
-  #            ubuntu-latest,
-  #            ubuntu-24.04,
-  #            ubuntu-22.04,
-  #            ubuntu-24.04-arm,
-  #            ubuntu-22.04-arm,
-  #            macos-latest,
-  #            macos-26,
-  #            macos-15,
-  #            macos-14,
-  #            macos-15-intel,
-  #          ]
-  #        python-version:
-  #          ["3.14", "3.14t", "3.13", "3.13t", "3.12", "3.11", "3.10"]
-  #
-  #    steps:
-  #      - name: Checkout
-  #        uses: actions/checkout@v6
-  #
-  #      - name: Verify Build
-  #        uses: ./
-  #        with:
-  #          package-name: myproject
-  #          python-version: ${{ matrix.python-version }}
+  test-python:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      max-parallel: 8
+      fail-fast: false
+      matrix:
+        os:
+          [
+            ubuntu-latest,
+            ubuntu-24.04,
+            ubuntu-22.04,
+            ubuntu-24.04-arm,
+            ubuntu-22.04-arm,
+            macos-latest,
+            macos-26,
+            macos-15,
+            macos-14,
+            macos-15-intel,
+          ]
+        python-version:
+          ["3.14", "3.14t", "3.13", "3.13t", "3.12", "3.11", "3.10"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Verify Build
+        uses: ./
+        with:
+          package-name: myproject
+          python-version: ${{ matrix.python-version }}
 
   #################################
   #     Tests to check inputs     #
@@ -96,71 +108,3 @@ jobs:
       - run: |
           echo "❌ Composite action did NOT fail with invalid input (but should)."
           exit 1
-
-  #############################################
-  #     Tests robustness to missing files     #
-  #############################################
-
-  test-missing-all:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Remove scripts
-        run: |
-          rm dev/package/*
-
-      - name: Verify Build
-        uses: ./
-        with:
-          package-name: myproject
-
-  test-missing-check-metadata:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Remove check metadata script
-        run: |
-          rm dev/package/check_metadata.sh
-
-      - name: Verify Build
-        uses: ./
-        with:
-          package-name: myproject
-
-  test-missing-check-type:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Remove check type script
-        run: |
-          rm dev/package/check_type.sh
-
-      - name: Verify Build
-        uses: ./
-        with:
-          package-name: myproject
-
-  test-missing-custom-checks:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Remove custom checks script
-        run: |
-          rm dev/package/custom_checks.sh
-
-      - name: Verify Build
-        uses: ./
-        with:
-          package-name: myproject

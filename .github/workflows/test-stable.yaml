@@ -38,9 +38,10 @@ jobs:
       - name: Verify Build
         uses: durandtibo/verify-uv-build-action@v0.0.3
         with:
+          dist-type: ${{ matrix.dist-type }}
           package-name: myproject
           package-extra: ${{ matrix.package-extra }}
-          dist-type: ${{ matrix.dist-type }}
+          package-dependencies: coola
 
   test-python:
     runs-on: ${{ matrix.os }}
@@ -107,87 +108,3 @@ jobs:
       - run: |
           echo "❌ Composite action did NOT fail with invalid input (but should)."
           exit 1
-
-  #############################################
-  #     Tests robustness to missing files     #
-  #############################################
-
-  test-missing-all:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Remove scripts
-        run: |
-          rm dev/package/*
-
-      - name: Verify Build
-        uses: durandtibo/verify-uv-build-action@v0.0.3
-        with:
-          package-name: myproject
-
-  test-missing-check-metadata:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Remove check metadata script
-        run: |
-          rm dev/package/check_metadata.sh
-
-      - name: Verify Build
-        uses: durandtibo/verify-uv-build-action@v0.0.3
-        with:
-          package-name: myproject
-
-  test-missing-check-dependency-tree:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Remove check dependency tree script
-        run: |
-          rm dev/package/check_dependency_tree.sh
-
-      - name: Verify Build
-        uses: durandtibo/verify-uv-build-action@v0.0.3
-        with:
-          package-name: myproject
-
-  test-missing-check-type:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Remove check type script
-        run: |
-          rm dev/package/check_type.sh
-
-      - name: Verify Build
-        uses: durandtibo/verify-uv-build-action@v0.0.3
-        with:
-          package-name: myproject
-
-  test-missing-custom-checks:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Remove custom checks script
-        run: |
-          rm dev/package/custom_checks.sh
-
-      - name: Verify Build
-        uses: durandtibo/verify-uv-build-action@v0.0.3
-        with:
-          package-name: myproject
