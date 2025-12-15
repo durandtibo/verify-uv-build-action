@@ -144,11 +144,10 @@ runs:
     # Step 8: Run custom metadata checks (optional)
     - name: Check package metadata
       shell: bash
-      if: hashFiles('dev/package/check_metadata.sh') != ''
       run: |
         set -euo pipefail
         echo "🔍 Running custom metadata checks..."
-        bash dev/package/check_metadata.sh
+        bash $GITHUB_ACTION_PATH/check_metadata.sh ${{ inputs.package-name }} ${{ inputs.package-dependencies }}
         echo "✅ Metadata checks passed"
 
     # Step 9: Verify dependency tree (optional)
@@ -160,7 +159,6 @@ runs:
         bash $GITHUB_ACTION_PATH/scripts/check_dependency_tree.sh ${{ inputs.package-name }} ${{ inputs.package-dependencies }}
         echo "✅ Dependency tree checks passed"
 
-    # Step 10: Test package import and version
     - name: Find module name
       shell: bash
       run: |
@@ -169,8 +167,10 @@ runs:
           PACKAGE_NAME=${{ inputs.package-name }}
           MODULE_NAME="${PACKAGE_NAME//-/_}"
         fi
+        echo "MODULE_NAME=$MODULE_NAME"
         echo "MODULE_NAME=$MODULE_NAME" >> $GITHUB_ENV
 
+    # Step 10: Test package import and version
     - name: Verify package import and version
       shell: bash
       run: |
