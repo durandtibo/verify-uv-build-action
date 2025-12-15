@@ -22,5 +22,3 @@ try:
 except PackageNotFoundError:  # pragma: no cover
     # Package is not installed, fallback if needed
     __version__ = "0.0.0"
-
-

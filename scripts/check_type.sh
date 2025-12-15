@@ -50,4 +50,4 @@ run_and_show() {
 # --ignoreexternal: Don't report issues with external dependencies
 run_and_show pyright --verifytypes "${PACKAGE_NAME}" --ignoreexternal
 
-echo "🎉 All type validation checks passed for $PACKAGE_NAME"
+echo "✅ Type hints validated for $PACKAGE_NAME"

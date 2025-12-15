@@ -146,7 +146,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        echo "🔍 Running custom metadata checks..."
+        echo "🔍 Checking package metadata..."
         bash $GITHUB_ACTION_PATH/scripts/check_metadata.sh ${{ inputs.package-name }} ${{ inputs.package-dependencies }}
         echo "✅ Metadata checks passed"
 
@@ -187,7 +187,7 @@ runs:
 
         echo "✅ Package imported successfully with valid version"
 
-    # Step 11: Validate type hints (optional)
+    # Step 11: Validate type hints
     - name: Check package type hints
       shell: bash
       run: |
@@ -195,7 +195,6 @@ runs:
         if uv pip install pyright 2>/dev/null; then
           echo "🔍 Running type hint validation..."
           $GITHUB_ACTION_PATH/scripts/check_type.sh $MODULE_NAME
-          echo "✅ Type hints validated"
         else
           echo "⚠️  Pyright not available, skipping type check"
         fi
