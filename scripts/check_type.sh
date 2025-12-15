@@ -14,7 +14,6 @@
 #   package_name - Name of the package to check (required)
 #
 # Examples:
-#   ./check_type.sh hatchling-autoextras-hook
 #   ./check_type.sh mypackage
 #   ./check_type.sh requests
 #
