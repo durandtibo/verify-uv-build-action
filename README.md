@@ -15,7 +15,6 @@ and comprehensively verify their quality, metadata, and installability.
 - 🔍 **Metadata validation** - check package metadata with twine
 - 🌲 **Dependency verification** - validate dependency tree structure
 - 📚 **Import testing** - ensure package is importable and has valid version
-- 🎯 **Custom checks** - run project-specific validation scripts
 - 🔧 **Flexible** - optional scripts for project-specific needs
 
 ## Usage
@@ -82,87 +81,11 @@ This action performs a comprehensive verification of your Python package build:
 5. **Import Test**: Verifies the package can be imported
 6. **Version Check**: Ensures version is not the placeholder "0.0.0"
 7. **Type Hints Check**: Validates type hints with pyright (if configured)
-8. **Custom Checks**: Runs project-specific validation scripts (if provided)
-
-## Optional Custom Checks
-
-The action supports optional project-specific validation scripts in the
-`dev/package/` directory. These scripts are automatically detected and run if
-present:
-
-### `dev/package/check_metadata.sh`
-
-Validate package metadata beyond what twine checks. Example:
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-METADATA=$(uv pip show mypackage)
-echo "$METADATA" | grep -q "Name: mypackage"
-echo "$METADATA" | grep -q "Requires: dependency-name"
-```
-
-### `dev/package/check_dependency_tree.sh`
-
-Verify the dependency tree structure matches expectations. Example:
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-OUTPUT=$(uv pip tree --package mypackage --show-version-specifiers)
-echo "$OUTPUT"
-
-# Validate dependency structure
-echo "$OUTPUT" | grep -q "mypackage"
-echo "$OUTPUT" | grep -q "└── dependency"
-```
-
-### `dev/package/check_type.sh`
-
-Validate type hints with pyright. Example:
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-PYRIGHT_DIR=tmp/pyright_check
-mkdir -p $PYRIGHT_DIR
-
-trap "rm -rf $PYRIGHT_DIR" EXIT
-
-cat >$PYRIGHT_DIR/check_import.py <<EOF
-import mypackage
-mypackage.__version__
-EOF
-
-pyright $PYRIGHT_DIR
-```
-
-### `dev/package/custom_checks.sh`
-
-Run any additional project-specific checks. Example:
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-python tests/custom_package_checks.py
-```
-
-All scripts should:
-
-- Be executable (`chmod +x script.sh`)
-- Use proper error handling (`set -euo pipefail`)
-- Exit with non-zero status on failure
-- Print clear error messages
 
 ## Requirements
 
 - Your project must have a `pyproject.toml` compatible with uv
 - For type checking: include a `py.typed` marker file in your package
-- Optional scripts should be in `dev/package/` directory
 
 ## Troubleshooting
 
@@ -174,14 +97,6 @@ Ensure the `dist-type` input is exactly `wheel` or `sdist` (case-sensitive).
 
 Add a `py.typed` file to your package source directory (e.g., `src/mypackage/py.typed`)
 if your package includes type hints.
-
-### Custom script not running
-
-Verify:
-
-- Script exists in `dev/package/` directory
-- Script is executable (`chmod +x script.sh`)
-- Script name matches exactly (e.g., `check_metadata.sh`)
 
 ## Contributing
 
