@@ -147,7 +147,7 @@ runs:
       run: |
         set -euo pipefail
         echo "🔍 Running custom metadata checks..."
-        bash $GITHUB_ACTION_PATH/check_metadata.sh ${{ inputs.package-name }} ${{ inputs.package-dependencies }}
+        bash $GITHUB_ACTION_PATH/scripts/check_metadata.sh ${{ inputs.package-name }} ${{ inputs.package-dependencies }}
         echo "✅ Metadata checks passed"
 
     # Step 9: Verify dependency tree (optional)
