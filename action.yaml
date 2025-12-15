@@ -46,18 +46,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Set environment variables
-      shell: bash
-      run: |
-        PACKAGE_NAME=${{ inputs.package-name }}
-        echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
-
-        MODULE_NAME=${{ inputs.module-name }}
-        if [ -z "$MODULE_NAME" ]; then
-          MODULE_NAME="${PACKAGE_NAME//-/_}"
-        fi
-        echo "MODULE_NAME=$MODULE_NAME" >> $GITHUB_ENV
-
     # Step 1: Validate dist-type input
     - name: Verify dist-type
       shell: bash
@@ -173,13 +161,23 @@ runs:
         echo "✅ Dependency tree checks passed"
 
     # Step 10: Test package import and version
+    - name: Find module name
+      shell: bash
+      run: |
+        MODULE_NAME=${{ inputs.module-name }}
+        if [ -z "$MODULE_NAME" ]; then
+          PACKAGE_NAME=${{ inputs.package-name }}
+          MODULE_NAME="${PACKAGE_NAME//-/_}"
+        fi
+        echo "MODULE_NAME=$MODULE_NAME" >> $GITHUB_ENV
+
     - name: Verify package import and version
       shell: bash
       run: |
         set -euo pipefail
         echo "🔍 Testing package import..."
 
-        VERSION=$(python -c "import ${{ inputs.package-name }}; print(${{ inputs.package-name }}.__version__)")
+        VERSION=$(python -c "import $MODULE_NAME; print($MODULE_NAME.__version__)")
         echo "📌 Package version: $VERSION"
 
         if [ "$VERSION" = "0.0.0" ]; then
