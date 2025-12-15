@@ -7,16 +7,16 @@
 #   the package name and required dependencies.
 #
 # Usage:
-#   ./check_metadata.sh PACKAGE_NAME [REQUIRED_DEPENDENCY ...]
+#   ./check_metadata.sh PACKAGE_NAME [DEPENDENCIES]
 #
 # Arguments:
-#   PACKAGE_NAME          - Name of the package to check
-#   REQUIRED_DEPENDENCY   - Optional dependency names to verify (can specify multiple)
+#   PACKAGE_NAME   - Name of the package to check
+#   DEPENDENCIES   - Optional comma-separated list of required dependencies
 #
 # Examples:
 #   ./check_metadata.sh myproject
 #   ./check_metadata.sh myproject coola
-#   ./check_metadata.sh myproject coola numpy pandas
+#   ./check_metadata.sh myproject "coola,numpy,pandas"
 #
 # Requirements:
 #   - uv must be installed
@@ -31,12 +31,12 @@ set -euo pipefail
 # Check if package name argument is provided
 if [ $# -lt 1 ]; then
     echo "Error: Package name is required" >&2
-    echo "Usage: $0 PACKAGE_NAME [REQUIRED_DEPENDENCY ...]" >&2
+    echo "Usage: $0 PACKAGE_NAME [DEPENDENCIES]" >&2
     exit 1
 fi
 
 PACKAGE_NAME="$1"
-shift  # Remove the first argument, leaving any dependencies
+DEPENDENCIES="${2:-}"  # Second argument, empty string if not provided
 
 METADATA=$(uv pip show "$PACKAGE_NAME")
 
@@ -44,11 +44,28 @@ echo "$METADATA"
 echo ""
 
 # Check package name
-echo "$METADATA" | grep -q "Name: $PACKAGE_NAME"
+if ! echo "$METADATA" | grep -q "Name: $PACKAGE_NAME"; then
+    echo "❌ Error: Package name '$PACKAGE_NAME' not found in metadata" >&2
+    exit 1
+fi
+echo "✅ Package name '$PACKAGE_NAME' verified"
 
-# Check each required dependency if provided
-for dep in "$@"; do
-    echo "$METADATA" | grep -q "Requires:.*$dep"
-done
+# Check dependencies if provided
+if [ -n "$DEPENDENCIES" ]; then
+    # Split comma-separated string into array
+    IFS=',' read -ra DEPS <<< "$DEPENDENCIES"
 
-echo "✅ Metadata validation passed for $PACKAGE_NAME"
+    for dep in "${DEPS[@]}"; do
+        # Trim whitespace from dependency name
+        dep=$(echo "$dep" | xargs)
+
+        if ! echo "$METADATA" | grep -q "Requires:.*$dep"; then
+            echo "❌ Error: Required dependency '$dep' not found in package metadata" >&2
+            exit 1
+        fi
+        echo "✅ Required dependency '$dep' found"
+    done
+fi
+
+echo ""
+echo "🎉 All metadata validation checks passed for $PACKAGE_NAME"
