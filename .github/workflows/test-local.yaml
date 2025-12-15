@@ -41,6 +41,7 @@ jobs:
           dist-type: ${{ matrix.dist-type }}
           package-name: myproject
           package-extra: ${{ matrix.package-extra }}
+          package-dependencies: coola
 
   test-python:
     runs-on: ${{ matrix.os }}
@@ -138,22 +139,6 @@ jobs:
       - name: Remove check metadata script
         run: |
           rm dev/package/check_metadata.sh
-
-      - name: Verify Build
-        uses: ./
-        with:
-          package-name: myproject
-
-  test-missing-check-dependency-tree:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Remove check dependency tree script
-        run: |
-          rm dev/package/check_dependency_tree.sh
 
       - name: Verify Build
         uses: ./
