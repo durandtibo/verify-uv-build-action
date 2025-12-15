@@ -148,7 +148,7 @@ runs:
       run: |
         set -euo pipefail
         echo "🔍 Checking dependency tree..."
-        bash scripts/check_dependency_tree.sh ${{ inputs.package-name }} ${{ inputs.package-dependencies }}
+        bash $GITHUB_ACTION_PATH/scripts/check_dependency_tree.sh ${{ inputs.package-name }} ${{ inputs.package-dependencies }}
         echo "✅ Dependency tree checks passed"
 
     # Step 10: Test package import and version
