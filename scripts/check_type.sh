@@ -38,11 +38,17 @@ fi
 
 PACKAGE_NAME="$1"
 
-echo "Verifying type completeness for package: ${PACKAGE_NAME}"
+echo "🔍 Verifying type completeness for package: ${PACKAGE_NAME}"
 echo ""
+
+run_and_show() {
+    echo "$ $*"
+    echo ""
+    "$@"
+}
 
 # Use pyright's --verifytypes to check type completeness
 # --ignoreexternal: Don't report issues with external dependencies
-set -x
-pyright --verifytypes "${PACKAGE_NAME}" --ignoreexternal
-set +x
+run_and_show pyright --verifytypes "${PACKAGE_NAME}" --ignoreexternal
+
+echo "🎉 All type validation checks passed for $PACKAGE_NAME"
