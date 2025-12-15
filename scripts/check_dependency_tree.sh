@@ -10,11 +10,16 @@
 #   3. The dependency versions match expected patterns
 #
 # Usage:
-#   ./check_dependency_tree.sh <package_name> <dependency1> [dependency2] [...]
+#   ./check_dependency_tree.sh <package_name> [dependencies]
 #
-#   Example:
+#   Arguments:
+#     package_name   - Name of the package to check
+#     dependencies   - Optional comma-separated list of required dependencies
+#
+#   Examples:
 #     ./check_dependency_tree.sh hatchling-autoextras-hook hatchling
-#     ./check_dependency_tree.sh mypackage requests flask numpy
+#     ./check_dependency_tree.sh mypackage "requests,flask,numpy"
+#     ./check_dependency_tree.sh mypackage "requests, flask, numpy"
 #
 # Requirements:
 #   - uv must be installed and available in PATH
@@ -31,20 +36,29 @@ set -euo pipefail
 if [ $# -lt 1 ]; then
     echo "❌ ERROR: Missing required arguments"
     echo ""
-    echo "Usage: $0 <package_name> [dependency1] [dependency2] [...]"
+    echo "Usage: $0 <package_name> [dependencies]"
     echo ""
-    echo "Example:"
-    echo "  $0 hatchling-autoextras-hook hatchling"
-    echo "  $0 mypackage requests flask numpy"
+    echo "Examples:"
+    echo "  $0 mypackage \"requests,flask,numpy\""
     exit 2
 fi
 
 # First argument is the package name
 package="$1"
-shift
+DEPENDENCIES="${2:-}"  # Second argument, empty string if not provided
 
-# Remaining arguments are dependencies
-dependencies=("$@")
+# Parse dependencies from comma-separated string
+dependencies=()
+if [ -n "$DEPENDENCIES" ]; then
+    # Split comma-separated string into array
+    IFS=',' read -ra DEPS <<< "$DEPENDENCIES"
+
+    # Trim whitespace from each dependency
+    for dep in "${DEPS[@]}"; do
+        trimmed=$(echo "$dep" | xargs)
+        dependencies+=("$trimmed")
+    done
+fi
 
 # Get the uv pip tree output
 tree_output=$(uv pip tree --package "$package" --show-version-specifiers)

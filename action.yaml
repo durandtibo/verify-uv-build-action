@@ -26,8 +26,8 @@ inputs:
     default: ""
   package-dependencies:
     description: |
-      "A list of dependencies to check in the build in the format
-      <dependency1> <dependency2> <dependency3> ..."
+      "A list of comma-separated list of required dependencies
+      <dependency1>,<dependency2>,<dependency3> ..."
     required: false
     default: ""
   dist-type:
