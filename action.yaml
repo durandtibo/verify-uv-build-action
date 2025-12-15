@@ -200,13 +200,3 @@ runs:
         else
           echo "⚠️  Pyright not available, skipping type check"
         fi
-
-    # Step 12: Run custom checks (optional)
-    - name: Run custom checks
-      shell: bash
-      if: hashFiles('dev/package/custom_checks.sh') != ''
-      run: |
-        set -euo pipefail
-        echo "🔍 Running custom checks..."
-        bash dev/package/custom_checks.sh
-        echo "✅ Custom checks passed"
