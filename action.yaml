@@ -15,6 +15,12 @@ inputs:
     description: "The package extra to install"
     required: false
     default: ""
+  package-dependencies:
+    description: |
+      "A list of dependencies to check in the build in the format
+      <dependency1> <dependency2> <dependency3> ..."
+    required: false
+    default: ""
   dist-type:
     description: "The distribution artifact. Choose either wheel or sdist"
     required: false
@@ -139,11 +145,10 @@ runs:
     # Step 9: Verify dependency tree (optional)
     - name: Check dependency tree
       shell: bash
-      if: hashFiles('dev/package/check_dependency_tree.sh') != ''
       run: |
         set -euo pipefail
         echo "🔍 Checking dependency tree..."
-        bash dev/package/check_dependency_tree.sh
+        bash scripts/check_dependency_tree.sh ${{ inputs.package-name }} ${{ inputs.package-dependencies }}
         echo "✅ Dependency tree checks passed"
 
     # Step 10: Test package import and version
