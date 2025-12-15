@@ -141,7 +141,7 @@ runs:
           echo "⚠️  Twine not available, skipping metadata validation"
         fi
 
-    # Step 8: Run custom metadata checks (optional)
+    # Step 8: Run custom metadata checks
     - name: Check package metadata
       shell: bash
       run: |
@@ -150,7 +150,7 @@ runs:
         bash $GITHUB_ACTION_PATH/scripts/check_metadata.sh ${{ inputs.package-name }} ${{ inputs.package-dependencies }}
         echo "✅ Metadata checks passed"
 
-    # Step 9: Verify dependency tree (optional)
+    # Step 9: Verify dependency tree
     - name: Check dependency tree
       shell: bash
       run: |
@@ -190,12 +190,11 @@ runs:
     # Step 11: Validate type hints (optional)
     - name: Check package type hints
       shell: bash
-      if: hashFiles('dev/package/check_type.sh') != ''
       run: |
         set -euo pipefail
         if uv pip install pyright 2>/dev/null; then
           echo "🔍 Running type hint validation..."
-          bash dev/package/check_type.sh
+          $GITHUB_ACTION_PATH/scripts/check_type.sh $MODULE_NAME
           echo "✅ Type hints validated"
         else
           echo "⚠️  Pyright not available, skipping type check"
