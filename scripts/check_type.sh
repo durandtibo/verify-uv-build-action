@@ -43,4 +43,6 @@ echo ""
 
 # Use pyright's --verifytypes to check type completeness
 # --ignoreexternal: Don't report issues with external dependencies
+set -x
 pyright --verifytypes "${PACKAGE_NAME}" --ignoreexternal
+set +x
