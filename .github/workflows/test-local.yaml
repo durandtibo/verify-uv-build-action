@@ -97,7 +97,7 @@ jobs:
           package-name: myproject
         continue-on-error: true
 
-      - name: Verify the previous step failed
+      - name: Failure - it did not fail as expected
         if: steps.run_action.outcome != 'failure'
         run: |
           echo "❌ Error: Step should have failed but didn't!"
@@ -135,7 +135,7 @@ jobs:
           dist-type: ${{ matrix.dist-type }}
         continue-on-error: true
 
-      - name: Verify the previous step failed
+      - name: Failure - it did not fail as expected
         if: steps.run_action.outcome != 'failure'
         run: |
           echo "❌ Error: Step should have failed but didn't!"
