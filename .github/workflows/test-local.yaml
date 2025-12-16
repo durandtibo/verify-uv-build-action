@@ -114,6 +114,13 @@ jobs:
     continue-on-error: true
     outputs:
       action_failed: ${{ steps.run_action.outcome == 'failure' }}
+    timeout-minutes: 10
+    strategy:
+      max-parallel: 8
+      fail-fast: false
+      matrix:
+        dist-type: ["sdist", "wheel"]
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -127,3 +134,4 @@ jobs:
         uses: ./
         with:
           package-name: myproject
+          dist-type: ${{ matrix.dist-type }}
