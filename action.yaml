@@ -109,7 +109,9 @@ runs:
         if $TOOL "${{ steps.dist.outputs.target }}" | grep -q py.typed; then
           echo "✅ py.typed marker found"
         else
-          echo "⚠️  Warning: py.typed marker not found"
+          echo "❌ Error: py.typed marker not found"
+          echo ""
+          echo "$TOOL ${{ steps.dist.outputs.target }}"
           exit 1
         fi
 
