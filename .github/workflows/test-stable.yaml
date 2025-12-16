@@ -81,7 +81,7 @@ jobs:
   #################################
 
   invalid-dist-type:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     continue-on-error: true
     outputs:
       action_failed: ${{ steps.run_action.outcome == 'failure' }}
@@ -108,7 +108,7 @@ jobs:
         run: echo "✅ Test passed - step failed as expected"
 
   missing-py-typed:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     continue-on-error: true
     outputs:
       action_failed: ${{ steps.run_action.outcome == 'failure' }}
