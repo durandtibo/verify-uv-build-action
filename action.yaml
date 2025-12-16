@@ -38,10 +38,6 @@ inputs:
     description: "Python version to use"
     required: false
     default: "3.13"
-  skip-py-typed-check:
-    description: "Skip the py.typed marker check"
-    required: false
-    default: "false"
 
 runs:
   using: "composite"
@@ -97,7 +93,7 @@ runs:
     # Step 5: Verify py.typed marker exists
     - name: Check py.typed in distribution
       shell: bash
-      if: inputs.skip-py-typed-check != 'true'
+      id: check-py-typed
       run: |
         set -euo pipefail
         if [ "${{ inputs.dist-type }}" = "wheel" ]; then
@@ -110,8 +106,6 @@ runs:
           echo "✅ py.typed marker found"
         else
           echo "❌ Error: py.typed marker not found"
-          echo ""
-          $TOOL "${{ steps.dist.outputs.target }}"
           exit 1
         fi
 
@@ -200,3 +194,14 @@ runs:
         else
           echo "⚠️  Pyright not available, skipping type check"
         fi
+
+    - name: Show artifacts
+      shell: bash
+      if: failure() && steps.check-py-typed.outcome == 'failure'
+      run: |
+        set -euo pipefail
+        echo "🔍 Show wheel content"
+        unzip -l "${{ steps.dist.outputs.target }}"
+        echo ""
+        echo "🔍 Show sdist content"
+        unzip -l "${{ steps.dist.outputs.target }}"
