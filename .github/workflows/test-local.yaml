@@ -97,20 +97,18 @@ jobs:
           package-name: myproject
         continue-on-error: true
 
-      - name: Report failure detection
-        run: echo "Action failed? ${{ steps.run_action.outcome }}"
-
-  verify-failure-dist-type:
-    runs-on: ubuntu-latest
-    needs: invalid-dist-type
-    if: ${{ needs.invalid-dist-type.outputs.action_failed != 'true' }}
-    steps:
-      - run: |
-          echo "❌ Composite action did NOT fail with invalid input (but should)."
+      - name: Failure - it did not fail as expected
+        if: steps.run_action.outcome != 'failure'
+        run: |
+          echo "❌ Error: Step should have failed but didn't!"
           exit 1
 
+      - name: Success - it failed as expected
+        if: steps.run_action.outcome == 'failure'
+        run: echo "✅ Test passed - step failed as expected"
+
   missing-py-typed:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     continue-on-error: true
     outputs:
       action_failed: ${{ steps.run_action.outcome == 'failure' }}
@@ -137,7 +135,7 @@ jobs:
           dist-type: ${{ matrix.dist-type }}
         continue-on-error: true
 
-      - name: Verify it failed
+      - name: Failure - it did not fail as expected
         if: steps.run_action.outcome != 'failure'
         run: |
           echo "❌ Error: Step should have failed but didn't!"
