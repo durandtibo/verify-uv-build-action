@@ -135,3 +135,14 @@ jobs:
         with:
           package-name: myproject
           dist-type: ${{ matrix.dist-type }}
+        continue-on-error: true
+
+      - name: Verify it failed
+        if: steps.run_action.outcome != 'failure'
+        run: |
+          echo "❌ Error: Step should have failed but didn't!"
+          exit 1
+
+      - name: Success - it failed as expected
+        if: steps.run_action.outcome == 'failure'
+        run: echo "✅ Test passed - step failed as expected"

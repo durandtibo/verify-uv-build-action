@@ -204,4 +204,4 @@ runs:
         unzip -l "${{ steps.dist.outputs.target }}"
         echo ""
         echo "🔍 Show sdist content"
-        unzip -l "${{ steps.dist.outputs.target }}"
+        tar -tzf "${{ steps.dist.outputs.target }}"
