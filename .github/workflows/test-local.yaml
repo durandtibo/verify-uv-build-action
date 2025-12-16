@@ -108,3 +108,41 @@ jobs:
       - run: |
           echo "❌ Composite action did NOT fail with invalid input (but should)."
           exit 1
+
+  missing-py-typed:
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    outputs:
+      action_failed: ${{ steps.run_action.outcome == 'failure' }}
+    timeout-minutes: 10
+    strategy:
+      max-parallel: 8
+      fail-fast: false
+      matrix:
+        dist-type: ["sdist", "wheel"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Remove py.typed
+        run: |
+          rm src/myproject/py.typed
+
+      - name: Call composite action
+        id: run_action
+        uses: ./
+        with:
+          package-name: myproject
+          dist-type: ${{ matrix.dist-type }}
+        continue-on-error: true
+
+      - name: Verify it failed
+        if: steps.run_action.outcome != 'failure'
+        run: |
+          echo "❌ Error: Step should have failed but didn't!"
+          exit 1
+
+      - name: Success - it failed as expected
+        if: steps.run_action.outcome == 'failure'
+        run: echo "✅ Test passed - step failed as expected"
