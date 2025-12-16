@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Verify Build
-        uses: durandtibo/verify-uv-build-action@v0.0.4
+        uses: durandtibo/verify-uv-build-action@v0.0.5
         with:
           dist-type: ${{ matrix.dist-type }}
           package-name: myproject
@@ -71,7 +71,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Verify Build
-        uses: durandtibo/verify-uv-build-action@v0.0.4
+        uses: durandtibo/verify-uv-build-action@v0.0.5
         with:
           package-name: myproject
           python-version: ${{ matrix.python-version }}
@@ -91,7 +91,7 @@ jobs:
 
       - name: Call composite action with invalid value
         id: run_action
-        uses: durandtibo/verify-uv-build-action@v0.0.4
+        uses: durandtibo/verify-uv-build-action@v0.0.5
         with:
           dist-type: tar
           package-name: myproject
@@ -129,7 +129,7 @@ jobs:
 
       - name: Call composite action
         id: run_action
-        uses: durandtibo/verify-uv-build-action@v0.0.4
+        uses: durandtibo/verify-uv-build-action@v0.0.5
         with:
           package-name: myproject
           dist-type: ${{ matrix.dist-type }}
