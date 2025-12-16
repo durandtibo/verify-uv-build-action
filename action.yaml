@@ -201,7 +201,7 @@ runs:
       run: |
         set -euo pipefail
         echo "🔍 Show wheel content"
-        unzip -l "${{ steps.dist.outputs.target }}"
+        unzip -l $(ls dist/*.whl | head -n1)
         echo ""
         echo "🔍 Show sdist content"
-        tar -tzf "${{ steps.dist.outputs.target }}"
+        tar -tzf $(ls dist/*.tar.gz | head -n1)
