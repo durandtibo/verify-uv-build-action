@@ -111,7 +111,7 @@ runs:
         else
           echo "❌ Error: py.typed marker not found"
           echo ""
-          echo "$TOOL ${{ steps.dist.outputs.target }}"
+          $TOOL "${{ steps.dist.outputs.target }}"
           exit 1
         fi
 
