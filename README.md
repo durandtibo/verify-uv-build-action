@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: durandtibo/verify-uv-build-action@v0.0.4
+      - uses: durandtibo/verify-uv-build-action@v0.0.5
         with:
           package-name: mypackage
 ```
@@ -53,7 +53,7 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v6
-      - uses: durandtibo/verify-uv-build-action@v0.0.4
+      - uses: durandtibo/verify-uv-build-action@v0.0.5
         with:
           package-name: mypackage
           dist-type: ${{ matrix.dist-type }}
