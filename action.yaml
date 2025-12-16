@@ -101,14 +101,13 @@ runs:
           TOOL="tar -tzf"
         fi
 
-        set -x
-        if $TOOL "${{ steps.dist.outputs.target }}" | grep -q py.typed; then
+        output=$($TOOL "${{ steps.dist.outputs.target }}")
+        if echo "$output" | grep -q py.typed; then
           echo "✅ py.typed marker found"
         else
           echo "❌ Error: py.typed marker not found"
           exit 1
         fi
-        set +x
 
     # Step 6: Install the built package
     - name: Install built package
