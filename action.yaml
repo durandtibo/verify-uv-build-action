@@ -93,7 +93,6 @@ runs:
     # Step 5: Verify py.typed marker exists
     - name: Check py.typed in distribution
       shell: bash
-      id: check-py-typed
       run: |
         set -euo pipefail
         if [ "${{ inputs.dist-type }}" = "wheel" ]; then
@@ -197,7 +196,7 @@ runs:
 
     - name: Show artifacts
       shell: bash
-      if: failure() && steps.check-py-typed.outcome == 'failure'
+      if: always()
       run: |
         set -euo pipefail
         echo "🔍 Show wheel content"
