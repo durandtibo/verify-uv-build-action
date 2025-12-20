@@ -20,6 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+all = []
 
 [dependency-groups]
 dev = []
