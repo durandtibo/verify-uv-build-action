@@ -79,7 +79,7 @@ runs:
           exit 1
         fi
 
-        echo "WHEEL_PATH=$WHEEL_PATH"
+        echo "📄 Found wheel file: $WHEEL_PATH"
         echo "WHEEL_PATH=$WHEEL_PATH" >> $GITHUB_ENV
 
     - name: Find sdist path
@@ -92,7 +92,7 @@ runs:
           exit 1
         fi
 
-        echo "SDIST_PATH=$SDIST_PATH"
+        echo "📄 Found sdist file: $SDIST_PATH"
         echo "SDIST_PATH=$SDIST_PATH" >> $GITHUB_ENV
 
     # Step 4: Locate the target distribution file
