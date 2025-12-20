@@ -144,7 +144,8 @@ extract_metadata() {
 #
 get_defined_extras() {
 	local metadata_content="$1"
-	echo "$metadata_content" | grep "^Provides-Extra:" | cut -d' ' -f2- | sort || true
+	# Use -E for extended regex and anchor to line start more explicitly
+	echo "$metadata_content" | grep -E "^Provides-Extra:[[:space:]]+" | sed 's/^Provides-Extra:[[:space:]]*//' | sort -u || true
 }
 
 #
@@ -216,6 +217,7 @@ verify_extras() {
 	echo "============================"
 
 	local all_valid=true
+	local missing_extras=()
 
 	while IFS= read -r extra; do
 		[ -z "$extra" ] && continue
@@ -224,6 +226,7 @@ verify_extras() {
 			echo -e "  ${GREEN}✓${NC} $extra"
 		else
 			echo -e "  ${RED}✗${NC} $extra - NOT DEFINED"
+			missing_extras+=("$extra")
 			all_valid=false
 		fi
 	done <<<"$requested_extras"
@@ -234,7 +237,7 @@ verify_extras() {
 		echo -e "${GREEN}✓ All requested extras are defined in the wheel${NC}"
 		return 0
 	else
-		echo -e "${RED}❌ Some extras are not defined in the wheel${NC}" >&2
+		echo -e "${RED}❌ Missing extras: ${missing_extras[*]}${NC}" >&2
 		echo ""
 		echo "Available extras:"
 		echo "$defined_extras" | while read -r extra; do

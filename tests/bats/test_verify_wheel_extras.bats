@@ -104,6 +104,14 @@ EOF
     [[ "$output" =~ "not a wheel" ]]
 }
 
+@test "validate_wheel_file: handles symbolic links" {
+    local link="$TEST_DIR/wheel_link.whl"
+    ln -s "$MOCK_WHEEL" "$link"
+
+    run validate_wheel_file "$link"
+    [ "$status" -eq 0 ]
+}
+
 #
 # Tests for extract_metadata
 #
@@ -175,6 +183,20 @@ EOF
     [ "$extras" = "$sorted_extras" ]
 }
 
+@test "get_defined_extras: handles duplicate extras in metadata" {
+    local metadata="Metadata-Version: 2.1
+Name: test
+Provides-Extra: numpy
+Provides-Extra: numpy
+Provides-Extra: pandas"
+
+    run get_defined_extras "$metadata"
+    [ "$status" -eq 0 ]
+    # Should only show unique extras
+    local count=$(echo "$output" | wc -l)
+    [ "$count" -eq 2 ]
+}
+
 #
 # Tests for parse_requested_extras
 #
@@ -226,6 +248,21 @@ EOF
     [ "${lines[0]}" = "NumPy" ]
     [ "${lines[1]}" = "PANDAS" ]
     [ "${lines[2]}" = "torch" ]
+}
+
+@test "parse_requested_extras: handles long extra names" {
+    local long_extra="very_long_extra_name_that_might_cause_issues_with_parsing"
+    run parse_requested_extras "$long_extra"
+    [ "$status" -eq 0 ]
+    [ "$output" = "$long_extra" ]
+}
+
+@test "parse_requested_extras: handles extras with hyphens and underscores" {
+    run parse_requested_extras "test-extra,test_extra,test.extra"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "test-extra" ]]
+    [[ "$output" =~ "test_extra" ]]
+    [[ "$output" =~ "test.extra" ]]
 }
 
 #
@@ -346,6 +383,28 @@ torch"
     run main "$MOCK_WHEEL"
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Total: 4 extras" ]]
+}
+
+@test "main: performs efficiently with many extras" {
+    # Create a wheel with 50 extras
+    local wheel_name="many_extras-1.0.0-py3-none-any.whl"
+    local dist_info="many_extras-1.0.0.dist-info"
+    mkdir -p "$TEST_DIR/$dist_info"
+
+    {
+        echo "Metadata-Version: 2.1"
+        echo "Name: many-extras"
+        echo "Version: 1.0.0"
+        for i in {1..50}; do
+            echo "Provides-Extra: extra$i"
+        done
+    } > "$TEST_DIR/$dist_info/METADATA"
+
+    (cd "$TEST_DIR" && zip -q -r "$wheel_name" "$dist_info")
+
+    local many_wheel="$TEST_DIR/$wheel_name"
+    run main "$many_wheel" "extra1,extra25,extra50"
+    [ "$status" -eq 0 ]
 }
 
 #
