@@ -1,0 +1,62 @@
+name: Shell Unit Tests
+
+on:
+  workflow_call:
+  workflow_dispatch: # to trigger manually
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      max-parallel: 8
+      fail-fast: false
+      matrix:
+        os:
+          [
+            ubuntu-latest,
+            ubuntu-24.04,
+            ubuntu-22.04,
+            ubuntu-24.04-arm,
+            ubuntu-22.04-arm,
+            macos-latest,
+            macos-26,
+            macos-15,
+            macos-14,
+            macos-15-intel,
+          ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install bats-core (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          echo "📦 Installing bats-core..."
+          sudo apt-get update -qq
+          sudo apt-get install -y bats
+          echo "✅ Installation complete"
+
+      - name: Install bats-core (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          echo "🍺 Installing bats-core..."
+          brew update
+          brew install bats-core
+          echo "✅ Installation complete"
+
+      - name: Verify bats installation
+        run: |
+          echo "✓ Verifying bats installation..."
+          bats --version
+          echo "✅ bats is installed and ready"
+
+      - name: Run unit tests
+        run: |
+          echo "🧪 Running tests on ${{ matrix.os }}..."
+          bats --recursive tests/bats
+          echo "✅ All tests passed"

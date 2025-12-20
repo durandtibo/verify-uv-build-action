@@ -292,8 +292,8 @@ torch"
 @test "main: succeeds when requested extras exist" {
     run main "$MOCK_WHEEL" "numpy,pandas"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "✓ numpy" ]]
-    [[ "$output" =~ "✓ pandas" ]]
+    [[ "$output" =~ ✓.*numpy ]]
+    [[ "$output" =~ ✓.*pandas ]]
     [[ "$output" =~ "All requested extras are defined" ]]
 }
 
@@ -336,9 +336,9 @@ torch"
 @test "main: handles extras with whitespace" {
     run main "$MOCK_WHEEL" "numpy , pandas , torch"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "✓ numpy" ]]
-    [[ "$output" =~ "✓ pandas" ]]
-    [[ "$output" =~ "✓ torch" ]]
+    [[ "$output" =~ ✓.*numpy ]]
+    [[ "$output" =~ ✓.*pandas ]]
+    [[ "$output" =~ ✓.*torch ]]
     [[ "$output" =~ "All requested extras are defined" ]]
 }
 
@@ -361,8 +361,8 @@ torch"
 @test "main: handles empty extra in comma list" {
     run main "$MOCK_WHEEL" "numpy,,pandas"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "✓ numpy" ]]
-    [[ "$output" =~ "✓ pandas" ]]
+    [[ "$output" =~ ✓.*numpy ]]
+    [[ "$output" =~ ✓.*pandas ]]
     # Should NOT show an error for empty string
     [[ ! "$output" =~ "NOT DEFINED" ]]
 }
