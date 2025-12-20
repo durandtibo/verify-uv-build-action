@@ -10,7 +10,7 @@ permissions:
 jobs:
   test:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 2
     strategy:
       max-parallel: 8
       fail-fast: false
@@ -45,7 +45,7 @@ jobs:
 
   test-python:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 2
     strategy:
       max-parallel: 8
       fail-fast: false
@@ -112,7 +112,7 @@ jobs:
     continue-on-error: true
     outputs:
       action_failed: ${{ steps.run_action.outcome == 'failure' }}
-    timeout-minutes: 10
+    timeout-minutes: 2
     strategy:
       max-parallel: 8
       fail-fast: false
@@ -150,7 +150,7 @@ jobs:
     continue-on-error: true
     outputs:
       action_failed: ${{ steps.run_action.outcome == 'failure' }}
-    timeout-minutes: 10
+    timeout-minutes: 2
 
     steps:
       - name: Checkout

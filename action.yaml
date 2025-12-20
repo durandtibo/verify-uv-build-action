@@ -95,8 +95,8 @@ runs:
         echo "📄 Found sdist file: $SDIST_PATH"
         echo "SDIST_PATH=$SDIST_PATH" >> $GITHUB_ENV
 
-    # Step 4: Locate the target distribution file
-    - name: Locate target distribution
+    # Step 4: Choose the target distribution file
+    - name: Choose target distribution
       shell: bash
       id: dist
       run: |
