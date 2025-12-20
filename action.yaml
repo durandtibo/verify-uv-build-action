@@ -138,7 +138,7 @@ runs:
       shell: bash
       run: |
         echo "🔍 Verifying extra is defined in wheel metadata..."
-        bash $GITHUB_ACTION_PATH/scripts/verify_wheel_extras.sh ${{ inputs.package-extra }}
+        bash $GITHUB_ACTION_PATH/scripts/verify_wheel_extras.sh $WHEEL_PATH ${{ inputs.package-extra }}
         echo "✅ wheel extra checks passed"
 
     # Step 6: Install the built package
