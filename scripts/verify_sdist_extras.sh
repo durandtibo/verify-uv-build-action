@@ -120,14 +120,15 @@ find_config_file() {
 	local config_type=""
 
 	# Look for pyproject.toml first (preferred)
-	config_path=$(tar -tzf "$sdist_file" 2>/dev/null | grep -E '/pyproject\.toml$' | head -n 1)
+	# Modified regex to match both /pyproject.toml and pyproject.toml (at root)
+	config_path=$(tar -tzf "$sdist_file" 2>/dev/null | grep -E '(^|/)pyproject\.toml$' | head -n 1)
 	if [ -n "$config_path" ]; then
 		echo "$config_path|pyproject.toml"
 		return 0
 	fi
 
 	# Fall back to setup.cfg
-	config_path=$(tar -tzf "$sdist_file" 2>/dev/null | grep -E '/setup\.cfg$' | head -n 1)
+	config_path=$(tar -tzf "$sdist_file" 2>/dev/null | grep -E '(^|/)setup\.cfg$' | head -n 1)
 	if [ -n "$config_path" ]; then
 		echo "$config_path|setup.cfg"
 		return 0
