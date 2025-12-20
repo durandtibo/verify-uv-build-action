@@ -144,3 +144,32 @@ jobs:
       - name: Success - it failed as expected
         if: steps.run_action.outcome == 'failure'
         run: echo "✅ Test passed - step failed as expected"
+
+  incorrect-extra:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    outputs:
+      action_failed: ${{ steps.run_action.outcome == 'failure' }}
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Call composite action
+        id: run_action
+        uses: ./
+        with:
+          package-name: myproject
+          package-extra: missing
+        continue-on-error: true
+
+      - name: Failure - it did not fail as expected
+        if: steps.run_action.outcome != 'failure'
+        run: |
+          echo "❌ Error: Step should have failed but didn't!"
+          exit 1
+
+      - name: Success - it failed as expected
+        if: steps.run_action.outcome == 'failure'
+        run: echo "✅ Test passed - step failed as expected"

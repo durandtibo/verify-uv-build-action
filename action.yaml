@@ -69,6 +69,32 @@ runs:
         uv build
         echo "✅ Build completed"
 
+    - name: Find wheel path
+      shell: bash
+      run: |
+        WHEEL_PATH=$(ls dist/*.whl | head -n1)
+
+        if [ -z "$WHEEL_PATH" ]; then
+          echo "❌ Error: No wheel distribution found"
+          exit 1
+        fi
+
+        echo "📄 Found wheel file: $WHEEL_PATH"
+        echo "WHEEL_PATH=$WHEEL_PATH" >> $GITHUB_ENV
+
+    - name: Find sdist path
+      shell: bash
+      run: |
+        SDIST_PATH=$(ls dist/*.tar.gz | head -n1)
+
+        if [ -z "$SDIST_PATH" ]; then
+          echo "❌ Error: No sdist distribution found"
+          exit 1
+        fi
+
+        echo "📄 Found sdist file: $SDIST_PATH"
+        echo "SDIST_PATH=$SDIST_PATH" >> $GITHUB_ENV
+
     # Step 4: Locate the target distribution file
     - name: Locate target distribution
       shell: bash
@@ -76,11 +102,10 @@ runs:
       run: |
         set -euo pipefail
         if [ "${{ inputs.dist-type }}" = "wheel" ]; then
-          EXTENSION="whl"
+          TARGET=$WHEEL_PATH
         else
-          EXTENSION="tar.gz"
+          TARGET=$SDIST_PATH
         fi
-        TARGET=$(ls dist/*."$EXTENSION" | head -n1)
 
         if [ -z "$TARGET" ]; then
           echo "❌ Error: No ${{ inputs.dist-type }} distribution found"
@@ -108,6 +133,13 @@ runs:
           echo "❌ Error: py.typed marker not found"
           exit 1
         fi
+
+    - name: Verify extra is defined in wheel metadata
+      shell: bash
+      run: |
+        echo "🔍 Verifying extra is defined in wheel metadata..."
+        bash $GITHUB_ACTION_PATH/scripts/verify_wheel_extras.sh $WHEEL_PATH ${{ inputs.package-extra }}
+        echo "✅ wheel extra checks passed"
 
     # Step 6: Install the built package
     - name: Install built package
