@@ -116,7 +116,7 @@ runs:
         echo "target=$TARGET" >> "$GITHUB_OUTPUT"
 
     # Step 5: Verify py.typed marker exists
-    - name: Check py.typed in distribution
+    - name: Check py.typed in wheel distribution
       shell: bash
       run: |
         set -euo pipefail
@@ -129,6 +129,30 @@ runs:
         output=$($TOOL "${{ steps.dist.outputs.target }}")
         if echo "$output" | grep -q py.typed; then
           echo "✅ py.typed marker found"
+        else
+          echo "❌ Error: py.typed marker not found"
+          exit 1
+        fi
+
+    - name: Check py.typed in wheel distribution
+      shell: bash
+      run: |
+        set -euo pipefail
+        output=$(unzip -l "$WHEEL_PATH")
+        if echo "$output" | grep -q py.typed; then
+          echo "✅ py.typed marker found in wheel"
+        else
+          echo "❌ Error: py.typed marker not found"
+          exit 1
+        fi
+
+    - name: Check py.typed in sdist distribution
+      shell: bash
+      run: |
+        set -euo pipefail
+        output=$(tar -tzf "$SDIST_PATH")
+        if echo "$output" | grep -q py.typed; then
+          echo "✅ py.typed marker found in sdist"
         else
           echo "❌ Error: py.typed marker not found"
           exit 1
