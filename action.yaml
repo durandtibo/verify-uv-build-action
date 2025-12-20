@@ -79,8 +79,8 @@ runs:
           exit 1
         fi
 
-        echo "WHEEL_PATH=WHEEL_PATH"
-        echo "WHEEL_PATH=WHEEL_PATH" >> $GITHUB_ENV
+        echo "WHEEL_PATH=$WHEEL_PATH"
+        echo "WHEEL_PATH=$WHEEL_PATH" >> $GITHUB_ENV
 
     - name: Find sdist path
       shell: bash
@@ -92,8 +92,8 @@ runs:
           exit 1
         fi
 
-        echo "SDIST_PATH=SDIST_PATH"
-        echo "SDIST_PATH=SDIST_PATH" >> $GITHUB_ENV
+        echo "SDIST_PATH=$SDIST_PATH"
+        echo "SDIST_PATH=$SDIST_PATH" >> $GITHUB_ENV
 
     # Step 4: Locate the target distribution file
     - name: Locate target distribution
@@ -102,9 +102,9 @@ runs:
       run: |
         set -euo pipefail
         if [ "${{ inputs.dist-type }}" = "wheel" ]; then
-          TARGET=WHEEL_PATH
+          TARGET=$WHEEL_PATH
         else
-          TARGET=SDIST_PATH
+          TARGET=$SDIST_PATH
         fi
 
         if [ -z "$TARGET" ]; then
