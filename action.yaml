@@ -95,45 +95,7 @@ runs:
         echo "📄 Found sdist file: $SDIST_PATH"
         echo "SDIST_PATH=$SDIST_PATH" >> $GITHUB_ENV
 
-    # Step 4: Choose the target distribution file
-    - name: Choose target distribution
-      shell: bash
-      id: dist
-      run: |
-        set -euo pipefail
-        if [ "${{ inputs.dist-type }}" = "wheel" ]; then
-          TARGET=$WHEEL_PATH
-        else
-          TARGET=$SDIST_PATH
-        fi
-
-        if [ -z "$TARGET" ]; then
-          echo "❌ Error: No ${{ inputs.dist-type }} distribution found"
-          exit 1
-        fi
-
-        echo "📄 Found distribution: $TARGET"
-        echo "target=$TARGET" >> "$GITHUB_OUTPUT"
-
     # Step 5: Verify py.typed marker exists
-    - name: Check py.typed in wheel distribution
-      shell: bash
-      run: |
-        set -euo pipefail
-        if [ "${{ inputs.dist-type }}" = "wheel" ]; then
-          TOOL="unzip -l"
-        else
-          TOOL="tar -tzf"
-        fi
-
-        output=$($TOOL "${{ steps.dist.outputs.target }}")
-        if echo "$output" | grep -q py.typed; then
-          echo "✅ py.typed marker found"
-        else
-          echo "❌ Error: py.typed marker not found"
-          exit 1
-        fi
-
     - name: Check py.typed in wheel distribution
       shell: bash
       run: |
@@ -164,6 +126,33 @@ runs:
         echo "🔍 Verifying extra is defined in wheel metadata..."
         bash $GITHUB_ACTION_PATH/scripts/verify_wheel_extras.sh $WHEEL_PATH ${{ inputs.package-extra }}
         echo "✅ wheel extra checks passed"
+
+    - name: Verify extra is defined in sdist metadata
+      shell: bash
+      run: |
+        echo "🔍 Verifying extra is defined in sdist metadata..."
+        bash $GITHUB_ACTION_PATH/scripts/verify_sdist_extras.sh $SDIST_PATH ${{ inputs.package-extra }}
+        echo "✅ sdist extra checks passed"
+
+    # Choose the target distribution file
+    - name: Choose target distribution
+      shell: bash
+      id: dist
+      run: |
+        set -euo pipefail
+        if [ "${{ inputs.dist-type }}" = "wheel" ]; then
+          TARGET=$WHEEL_PATH
+        else
+          TARGET=$SDIST_PATH
+        fi
+
+        if [ -z "$TARGET" ]; then
+          echo "❌ Error: No ${{ inputs.dist-type }} distribution found"
+          exit 1
+        fi
+
+        echo "📄 Found distribution: $TARGET"
+        echo "target=$TARGET" >> "$GITHUB_OUTPUT"
 
     # Step 6: Install the built package
     - name: Install built package

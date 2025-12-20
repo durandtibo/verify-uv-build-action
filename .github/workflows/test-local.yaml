@@ -113,11 +113,6 @@ jobs:
     outputs:
       action_failed: ${{ steps.run_action.outcome == 'failure' }}
     timeout-minutes: 2
-    strategy:
-      max-parallel: 8
-      fail-fast: false
-      matrix:
-        dist-type: ["sdist", "wheel"]
 
     steps:
       - name: Checkout
@@ -132,7 +127,6 @@ jobs:
         uses: ./
         with:
           package-name: myproject
-          dist-type: ${{ matrix.dist-type }}
         continue-on-error: true
 
       - name: Failure - it did not fail as expected
