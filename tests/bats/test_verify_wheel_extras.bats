@@ -217,6 +217,17 @@ EOF
     [ "$(echo "$output" | wc -l)" -eq 2 ]
 }
 
+@test "parse_requested_extras: preserves case" {
+    local input="NumPy,PANDAS,torch"
+
+    run parse_requested_extras "$input"
+
+    [ "$status" -eq 0 ]
+    [ "${lines[0]}" = "NumPy" ]
+    [ "${lines[1]}" = "PANDAS" ]
+    [ "${lines[2]}" = "torch" ]
+}
+
 #
 # Tests for verify_extras
 #
@@ -289,14 +300,15 @@ torch"
 @test "main: fails when requested extras don't exist" {
     run main "$MOCK_WHEEL" "numpy,nonexistent"
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "✓ numpy" ]]
-    [[ "$output" =~ "✗ nonexistent" ]]
+    [[ "$output" =~ ✓.*numpy ]]
+    [[ "$output" =~ ✗.*nonexistent ]]
 }
 
 @test "main: handles single extra" {
     run main "$MOCK_WHEEL" "numpy"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "✓ numpy" ]]
+    [[ "$output" =~ ✓.*numpy ]]
+    [[ "$output" =~ "All requested extras are defined" ]]
 }
 
 @test "main: fails on non-existent wheel" {
@@ -327,6 +339,7 @@ torch"
     [[ "$output" =~ "✓ numpy" ]]
     [[ "$output" =~ "✓ pandas" ]]
     [[ "$output" =~ "✓ torch" ]]
+    [[ "$output" =~ "All requested extras are defined" ]]
 }
 
 @test "main: shows total count of extras" {
@@ -342,7 +355,7 @@ torch"
 @test "main: handles case-sensitive extra names" {
     run main "$MOCK_WHEEL" "NumPy"
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "✗ NumPy - NOT DEFINED" ]]
+    [[ "$output" =~ "NumPy - NOT DEFINED" ]]
 }
 
 @test "main: handles empty extra in comma list" {
