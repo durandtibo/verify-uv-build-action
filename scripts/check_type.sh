@@ -28,26 +28,38 @@
 
 set -euo pipefail
 
-# Parse arguments
-if [ $# -eq 0 ]; then
-	echo "Error: Package name is required" >&2
-	echo "Usage: $0 <package_name>" >&2
-	exit 2
-fi
-
-PACKAGE_NAME="$1"
-
-echo "🔍 Verifying type completeness for package: ${PACKAGE_NAME}"
-echo ""
-
 run_and_show() {
 	echo "$ $*"
 	echo ""
 	"$@"
 }
 
-# Use pyright's --verifytypes to check type completeness
-# --ignoreexternal: Don't report issues with external dependencies
-run_and_show pyright --verifytypes "${PACKAGE_NAME}" --ignoreexternal
+check_type() {
+	local package_name="$1"
 
-echo "✅ Type hints validated for $PACKAGE_NAME"
+	echo "🔍 Verifying type completeness for package: ${package_name}"
+	echo ""
+
+	# Use pyright's --verifytypes to check type completeness
+	# --ignoreexternal: Don't report issues with external dependencies
+	run_and_show pyright --verifytypes "${package_name}" --ignoreexternal
+
+	echo "✅ Type hints validated for ${package_name}"
+}
+
+main() {
+	# Parse arguments
+	if [ $# -eq 0 ]; then
+		echo "Error: Package name is required" >&2
+		echo "Usage: $0 <package_name>" >&2
+		exit 2
+	fi
+
+	local package_name="$1"
+	check_type "${package_name}"
+}
+
+# Only run main if script is executed directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+	main "$@"
+fi
