@@ -63,12 +63,16 @@ jobs:
 
 ## Inputs
 
-| Input            | Required | Default | Description                                            |
-| ---------------- | -------- | ------- | ------------------------------------------------------ |
-| `package-name`   | Yes      | -       | The name of the package to verify                      |
-| `package-extra`  | No       | `""`    | Optional package extras to install (e.g., `dev, test`) |
-| `dist-type`      | No       | `wheel` | Distribution type to test: `wheel` or `sdist`          |
-| `python-version` | No       | `3.13`  | Python version to use for testing                      |
+| Input                  | Required | Default | Description                                                                                        |
+| ---------------------- | -------- | ------- | -------------------------------------------------------------------------------------------------- |
+| `package-name`         | Yes      | -       | The name of the package to verify (distribution name on PyPI)                                      |
+| `module-name`          | No       | `""`    | The name used in import statements (defaults to package-name with hyphens replaced by underscores) |
+| `package-extra`        | No       | `""`    | Optional package extras to install (e.g., `dev`, `test`)                                           |
+| `package-dependencies` | No       | `""`    | Comma-separated list of required dependencies to verify                                            |
+| `dist-type`            | No       | `wheel` | Distribution type to test: `wheel` or `sdist`                                                      |
+| `python-version`       | No       | `3.13`  | Python version to use for testing                                                                  |
+| `verify-wheel-extra`   | No       | `true`  | Whether to verify the wheel extra is defined in metadata                                           |
+| `verify-sdist-extra`   | No       | `true`  | Whether to verify the sdist extra is defined in metadata                                           |
 
 ## What Does This Action Do?
 
