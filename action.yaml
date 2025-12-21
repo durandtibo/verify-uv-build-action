@@ -39,6 +39,15 @@ inputs:
     required: false
     default: "3.13"
 
+  verify-wheel-extra:
+    description: "Whether to verify the wheel extra is defined in metadata"
+    required: false
+    default: "true"
+  verify-sdist-extra:
+    description: "Whether to verify the sdist extra is defined in metadata"
+    required: false
+    default: "true"
+
 runs:
   using: "composite"
   steps:
@@ -122,6 +131,7 @@ runs:
 
     - name: Verify extra is defined in wheel metadata
       shell: bash
+      if: ${{ inputs.verify-wheel-extra == 'true' }}
       run: |
         echo "🔍 Verifying extra is defined in wheel metadata..."
         bash $GITHUB_ACTION_PATH/scripts/verify_wheel_extras.sh $WHEEL_PATH ${{ inputs.package-extra }}
@@ -129,13 +139,14 @@ runs:
 
     - name: Verify extra is defined in sdist metadata
       shell: bash
+      if: ${{ inputs.verify-sdist-extra == 'true' }}
       run: |
         echo "🔍 Verifying extra is defined in sdist metadata..."
         bash $GITHUB_ACTION_PATH/scripts/verify_sdist_extras.sh $SDIST_PATH ${{ inputs.package-extra }}
         echo "✅ sdist extra checks passed"
 
     # Choose the target distribution file
-    - name: Choose target distribution
+    - name: Choose target distribution to build
       shell: bash
       id: dist
       run: |
@@ -246,7 +257,7 @@ runs:
       run: |
         set -euo pipefail
         echo "🔍 Show wheel content"
-        unzip -l $(ls dist/*.whl | head -n1)
+        unzip -l $WHEEL_PATH
         echo ""
         echo "🔍 Show sdist content"
-        tar -tzf $(ls dist/*.tar.gz | head -n1)
+        tar -tzf $SDIST_PATH
