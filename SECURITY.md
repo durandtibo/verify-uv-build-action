@@ -19,7 +19,7 @@ For maximum security in your workflows:
 ### Option 1: Pin to a Specific Release (Recommended for Stability)
 
 ```yaml
-- uses: durandtibo/verify-uv-build-action@v0.0.6
+- uses: durandtibo/verify-uv-build-action@v0.0.7
 ```
 
 ### Option 2: Pin to a Commit SHA (Maximum Security)
