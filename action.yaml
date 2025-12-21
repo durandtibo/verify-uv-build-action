@@ -10,14 +10,15 @@ branding:
 inputs:
   package-name:
     description: |
-      The name used to install the package. It is also known as distribution name.
-      For example, it is the name on PyPI.
+      The name used to install the package. It is also known as
+      distribution name. For example, it is the name on PyPI.
     required: true
   module-name:
     description: |
-      The name used in import statements. This input is optional and
-      the package name is used if no module name is provided.
-      The hyphens in the package name will be replaced by underscores.
+      The name used in import statements. This input is optional
+      and the package name is used if no module name is provided.
+      The hyphens in the package name will be replaced by
+      underscores.
     required: false
     default: ""
   package-extra:
@@ -26,50 +27,53 @@ inputs:
     default: ""
   package-dependencies:
     description: |
-      "A list of comma-separated list of required dependencies
-      <dependency1>,<dependency2>,<dependency3> ..."
+      A list of comma-separated required dependencies
+      <dependency1>,<dependency2>,<dependency3> ...
     required: false
     default: ""
   dist-type:
-    description: "The distribution artifact. Choose either wheel or sdist"
+    description: |
+      The distribution artifact. Choose either wheel or sdist
     required: false
     default: "wheel"
   python-version:
     description: "Python version to use"
     required: false
     default: "3.13"
-
   verify-wheel-extra:
-    description: "Whether to verify the wheel extra is defined in metadata"
+    description: |
+      Whether to verify the wheel extra is defined in metadata
     required: false
     default: "true"
   verify-sdist-extra:
-    description: "Whether to verify the sdist extra is defined in metadata"
+    description: |
+      Whether to verify the sdist extra is defined in metadata
     required: false
     default: "true"
 
 runs:
   using: "composite"
   steps:
-    # Step 1: Validate dist-type input
+    # Validate dist-type input
     - name: Verify dist-type
       shell: bash
       run: |
         set -euo pipefail
-        if [[ "${{ inputs.dist-type }}" != "wheel" && "${{ inputs.dist-type }}" != "sdist" ]]; then
+        if [[ "${{ inputs.dist-type }}" != "wheel" && \
+              "${{ inputs.dist-type }}" != "sdist" ]]; then
           echo "❌ Error: input 'dist-type' must be 'wheel' or 'sdist'."
           exit 1
         fi
         echo "✅ Distribution type: ${{ inputs.dist-type }}"
 
-    # Step 2: Install uv package manager
+    # Install uv package manager
     - name: Install uv
       uses: astral-sh/setup-uv@v7
       with:
         python-version: ${{ inputs.python-version }}
         activate-environment: true
 
-    # Step 3: Build the package
+    # Build the package
     - name: Build package
       shell: bash
       run: |
@@ -78,6 +82,7 @@ runs:
         uv build
         echo "✅ Build completed"
 
+    # Find wheel distribution path
     - name: Find wheel path
       shell: bash
       run: |
@@ -91,6 +96,7 @@ runs:
         echo "📄 Found wheel file: $WHEEL_PATH"
         echo "WHEEL_PATH=$WHEEL_PATH" >> $GITHUB_ENV
 
+    # Find sdist distribution path
     - name: Find sdist path
       shell: bash
       run: |
@@ -104,7 +110,7 @@ runs:
         echo "📄 Found sdist file: $SDIST_PATH"
         echo "SDIST_PATH=$SDIST_PATH" >> $GITHUB_ENV
 
-    # Step 5: Verify py.typed marker exists
+    # Verify py.typed marker exists in wheel
     - name: Check py.typed in wheel distribution
       shell: bash
       run: |
@@ -117,6 +123,7 @@ runs:
           exit 1
         fi
 
+    # Verify py.typed marker exists in sdist
     - name: Check py.typed in sdist distribution
       shell: bash
       run: |
@@ -129,23 +136,27 @@ runs:
           exit 1
         fi
 
+    # Verify extra is defined in wheel metadata
     - name: Verify extra is defined in wheel metadata
       shell: bash
       if: ${{ inputs.verify-wheel-extra == 'true' }}
       run: |
         echo "🔍 Verifying extra is defined in wheel metadata..."
-        bash $GITHUB_ACTION_PATH/scripts/verify_wheel_extras.sh $WHEEL_PATH ${{ inputs.package-extra }}
+        bash $GITHUB_ACTION_PATH/scripts/verify_wheel_extras.sh \
+          $WHEEL_PATH ${{ inputs.package-extra }}
         echo "✅ wheel extra checks passed"
 
+    # Verify extra is defined in sdist metadata
     - name: Verify extra is defined in sdist metadata
       shell: bash
       if: ${{ inputs.verify-sdist-extra == 'true' }}
       run: |
         echo "🔍 Verifying extra is defined in sdist metadata..."
-        bash $GITHUB_ACTION_PATH/scripts/verify_sdist_extras.sh $SDIST_PATH ${{ inputs.package-extra }}
+        bash $GITHUB_ACTION_PATH/scripts/verify_sdist_extras.sh \
+          $SDIST_PATH ${{ inputs.package-extra }}
         echo "✅ sdist extra checks passed"
 
-    # Choose the target distribution file
+    # Choose target distribution based on dist-type input
     - name: Choose target distribution to build
       shell: bash
       id: dist
@@ -165,7 +176,7 @@ runs:
         echo "📄 Found distribution: $TARGET"
         echo "target=$TARGET" >> "$GITHUB_OUTPUT"
 
-    # Step 6: Install the built package
+    # Install the built package
     - name: Install built package
       shell: bash
       run: |
@@ -180,7 +191,7 @@ runs:
         uv pip install "$PKG"
         echo "✅ Package installed successfully"
 
-    # Step 7: Validate package metadata with twine
+    # Validate package metadata with twine
     - name: Install and run twine check
       shell: bash
       run: |
@@ -190,27 +201,30 @@ runs:
           twine check dist/*
           echo "✅ Twine check passed"
         else
-          echo "⚠️  Twine not available, skipping metadata validation"
+          echo "⚠️  Twine not available, skipping validation"
         fi
 
-    # Step 8: Run custom metadata checks
+    # Verify package metadata
     - name: Check package metadata
       shell: bash
       run: |
         set -euo pipefail
         echo "🔍 Checking package metadata..."
-        bash $GITHUB_ACTION_PATH/scripts/check_metadata.sh ${{ inputs.package-name }} ${{ inputs.package-dependencies }}
+        bash $GITHUB_ACTION_PATH/scripts/check_metadata.sh \
+          ${{ inputs.package-name }} ${{ inputs.package-dependencies }}
         echo "✅ Metadata checks passed"
 
-    # Step 9: Verify dependency tree
+    # Verify dependency tree
     - name: Check dependency tree
       shell: bash
       run: |
         set -euo pipefail
         echo "🔍 Checking dependency tree..."
-        bash $GITHUB_ACTION_PATH/scripts/check_dependency_tree.sh ${{ inputs.package-name }} ${{ inputs.package-dependencies }}
+        bash $GITHUB_ACTION_PATH/scripts/check_dependency_tree.sh \
+          ${{ inputs.package-name }} ${{ inputs.package-dependencies }}
         echo "✅ Dependency tree checks passed"
 
+    # Determine module name from package name
     - name: Find module name
       shell: bash
       run: |
@@ -222,14 +236,15 @@ runs:
         echo "MODULE_NAME=$MODULE_NAME"
         echo "MODULE_NAME=$MODULE_NAME" >> $GITHUB_ENV
 
-    # Step 10: Test package import and version
+    # Test package import and version
     - name: Verify package import and version
       shell: bash
       run: |
         set -euo pipefail
         echo "🔍 Testing package import..."
 
-        VERSION=$(python -c "import $MODULE_NAME; print($MODULE_NAME.__version__)")
+        VERSION=$(python -c \
+          "import $MODULE_NAME; print($MODULE_NAME.__version__)")
         echo "📌 Package version: $VERSION"
 
         if [ "$VERSION" = "0.0.0" ]; then
@@ -239,7 +254,7 @@ runs:
 
         echo "✅ Package imported successfully with valid version"
 
-    # Step 11: Validate type hints
+    # Validate type hints with pyright
     - name: Check package type hints
       shell: bash
       run: |
@@ -251,6 +266,7 @@ runs:
           echo "⚠️  Pyright not available, skipping type check"
         fi
 
+    # Display artifact contents for debugging
     - name: Show artifacts
       shell: bash
       if: always()
