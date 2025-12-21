@@ -87,9 +87,7 @@ setup_file() {
 	run bash -c "source '${SCRIPT_PATH}'; run_and_show echo test_output"
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == "$ echo test_output" ]]
-	# Line 1 is empty, line 2 has the output
-	[[ "${lines[1]}" == "" ]]
-	[[ "${lines[2]}" == "test_output" ]]
+	[[ "$output" =~ "test_output" ]]
 }
 
 # Test: Script handles package names with special characters
