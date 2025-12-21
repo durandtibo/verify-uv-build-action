@@ -70,8 +70,6 @@ jobs:
   invalid-dist-type:
     runs-on: ubuntu-latest
     continue-on-error: true
-    outputs:
-      action_failed: ${{ steps.run_action.outcome == 'failure' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -97,8 +95,6 @@ jobs:
   missing-py-typed:
     runs-on: ubuntu-latest
     continue-on-error: true
-    outputs:
-      action_failed: ${{ steps.run_action.outcome == 'failure' }}
     timeout-minutes: 2
 
     steps:
@@ -129,8 +125,6 @@ jobs:
   incorrect-extra:
     runs-on: ubuntu-latest
     continue-on-error: true
-    outputs:
-      action_failed: ${{ steps.run_action.outcome == 'failure' }}
     timeout-minutes: 2
 
     steps:
@@ -154,3 +148,23 @@ jobs:
       - name: Success - it failed as expected
         if: steps.run_action.outcome == 'failure'
         run: echo "✅ Test passed - step failed as expected"
+
+  incorrect-extra-skip:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    outputs:
+      action_failed: ${{ steps.run_action.outcome == 'failure' }}
+    timeout-minutes: 2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Call composite action
+        id: run_action
+        uses: ./
+        with:
+          package-name: myproject
+          package-extra: missing
+          verify-wheel-extra: false
+          verify-sdist-extra: false
