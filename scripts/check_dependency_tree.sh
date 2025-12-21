@@ -56,7 +56,9 @@ if [ -n "$DEPENDENCIES" ]; then
 	# Trim whitespace from each dependency
 	for dep in "${DEPS[@]}"; do
 		trimmed=$(echo "$dep" | xargs)
-		dependencies+=("$trimmed")
+		if [ -n "$trimmed" ]; then
+			dependencies+=("$trimmed")
+		fi
 	done
 fi
 
