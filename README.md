@@ -115,7 +115,3 @@ For security concerns, please see [SECURITY.md](SECURITY.md).
 
 This project is licensed under the BSD 3-Clause License - see the
 [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-Built with [uv](https://github.com/astral-sh/uv) by Astral.
