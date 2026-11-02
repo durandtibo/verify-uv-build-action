@@ -44,7 +44,7 @@ echo "$METADATA"
 echo ""
 
 # Check package name
-if ! echo "$METADATA" | grep -q "Name: $PACKAGE_NAME"; then
+if ! echo "$METADATA" | grep -qix "Name: $PACKAGE_NAME"; then
 	echo "❌ Error: Package name '$PACKAGE_NAME' not found in metadata" >&2
 	exit 1
 fi
@@ -59,7 +59,7 @@ if [ -n "$DEPENDENCIES" ]; then
 		# Trim whitespace from dependency name
 		dep=$(echo "$dep" | xargs)
 
-		if ! echo "$METADATA" | grep -q "Requires:.*$dep"; then
+		if ! echo "$METADATA" | grep -qiE "^Requires:.*(^|[ ,])${dep}(,|$)"; then
 			echo "❌ Error: Required dependency '$dep' not found in package metadata" >&2
 			exit 1
 		fi

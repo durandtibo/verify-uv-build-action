@@ -57,14 +57,15 @@ runs:
     # Validate dist-type input
     - name: Verify dist-type
       shell: bash
+      env:
+        DIST_TYPE: ${{ inputs.dist-type }}
       run: |
         set -euo pipefail
-        if [[ "${{ inputs.dist-type }}" != "wheel" && \
-              "${{ inputs.dist-type }}" != "sdist" ]]; then
+        if [[ "$DIST_TYPE" != "wheel" && "$DIST_TYPE" != "sdist" ]]; then
           echo "❌ Error: input 'dist-type' must be 'wheel' or 'sdist'."
           exit 1
         fi
-        echo "✅ Distribution type: ${{ inputs.dist-type }}"
+        echo "✅ Distribution type: $DIST_TYPE"
 
     # Install uv package manager
     - name: Install uv
@@ -82,44 +83,42 @@ runs:
         uv build
         echo "✅ Build completed"
 
-    # Find wheel distribution path
-    - name: Find wheel path
+    # Find wheel and sdist paths
+    - name: Find distribution paths
       shell: bash
       run: |
-        WHEEL_PATH=$(ls dist/*.whl | head -n1)
+        set -euo pipefail
+        shopt -s nullglob
+        wheels=(dist/*.whl)
+        sdists=(dist/*.tar.gz)
 
-        if [ -z "$WHEEL_PATH" ]; then
+        if [ ${#wheels[@]} -eq 0 ]; then
           echo "❌ Error: No wheel distribution found"
           exit 1
         fi
-
-        echo "📄 Found wheel file: $WHEEL_PATH"
-        echo "WHEEL_PATH=$WHEEL_PATH" >> $GITHUB_ENV
-
-    # Find sdist distribution path
-    - name: Find sdist path
-      shell: bash
-      run: |
-        SDIST_PATH=$(ls dist/*.tar.gz | head -n1)
-
-        if [ -z "$SDIST_PATH" ]; then
+        if [ ${#sdists[@]} -eq 0 ]; then
           echo "❌ Error: No sdist distribution found"
           exit 1
         fi
 
-        echo "📄 Found sdist file: $SDIST_PATH"
-        echo "SDIST_PATH=$SDIST_PATH" >> $GITHUB_ENV
+        echo "📄 Found wheel file: ${wheels[0]}"
+        echo "📄 Found sdist file: ${sdists[0]}"
+        {
+          echo "WHEEL_PATH=${wheels[0]}"
+          echo "SDIST_PATH=${sdists[0]}"
+        } >> "$GITHUB_ENV"
 
     # Verify py.typed marker exists in wheel
     - name: Check py.typed in wheel distribution
       shell: bash
       run: |
         set -euo pipefail
-        output=$(unzip -l "$WHEEL_PATH")
-        if echo "$output" | grep -q py.typed; then
+        # Capture first: `grep -q` in a pipe can trigger SIGPIPE under pipefail
+        output=$(unzip -Z1 "$WHEEL_PATH")
+        if grep -q 'py\.typed$' <<<"$output"; then
           echo "✅ py.typed marker found in wheel"
         else
-          echo "❌ Error: py.typed marker not found"
+          echo "❌ Error: py.typed marker not found in wheel"
           exit 1
         fi
 
@@ -129,10 +128,10 @@ runs:
       run: |
         set -euo pipefail
         output=$(tar -tzf "$SDIST_PATH")
-        if echo "$output" | grep -q py.typed; then
+        if grep -q 'py\.typed$' <<<"$output"; then
           echo "✅ py.typed marker found in sdist"
         else
-          echo "❌ Error: py.typed marker not found"
+          echo "❌ Error: py.typed marker not found in sdist"
           exit 1
         fi
 
@@ -140,51 +139,46 @@ runs:
     - name: Verify extra is defined in wheel metadata
       shell: bash
       if: ${{ inputs.verify-wheel-extra == 'true' }}
+      env:
+        PACKAGE_EXTRA: ${{ inputs.package-extra }}
       run: |
+        set -euo pipefail
         echo "🔍 Verifying extra is defined in wheel metadata..."
-        bash $GITHUB_ACTION_PATH/scripts/verify_wheel_extras.sh \
-          $WHEEL_PATH ${{ inputs.package-extra }}
+        bash "$GITHUB_ACTION_PATH/scripts/verify_wheel_extras.sh" \
+          "$WHEEL_PATH" "$PACKAGE_EXTRA"
         echo "✅ wheel extra checks passed"
 
     # Verify extra is defined in sdist metadata
     - name: Verify extra is defined in sdist metadata
       shell: bash
       if: ${{ inputs.verify-sdist-extra == 'true' }}
+      env:
+        PACKAGE_EXTRA: ${{ inputs.package-extra }}
       run: |
+        set -euo pipefail
         echo "🔍 Verifying extra is defined in sdist metadata..."
-        bash $GITHUB_ACTION_PATH/scripts/verify_sdist_extras.sh \
-          $SDIST_PATH ${{ inputs.package-extra }}
+        bash "$GITHUB_ACTION_PATH/scripts/verify_sdist_extras.sh" \
+          "$SDIST_PATH" "$PACKAGE_EXTRA"
         echo "✅ sdist extra checks passed"
 
-    # Choose target distribution based on dist-type input
-    - name: Choose target distribution to build
-      shell: bash
-      id: dist
-      run: |
-        set -euo pipefail
-        if [ "${{ inputs.dist-type }}" = "wheel" ]; then
-          TARGET=$WHEEL_PATH
-        else
-          TARGET=$SDIST_PATH
-        fi
-
-        if [ -z "$TARGET" ]; then
-          echo "❌ Error: No ${{ inputs.dist-type }} distribution found"
-          exit 1
-        fi
-
-        echo "📄 Found distribution: $TARGET"
-        echo "target=$TARGET" >> "$GITHUB_OUTPUT"
-
-    # Install the built package
+    # Install the built package from the selected distribution
     - name: Install built package
       shell: bash
+      env:
+        DIST_TYPE: ${{ inputs.dist-type }}
+        PACKAGE_EXTRA: ${{ inputs.package-extra }}
       run: |
         set -euo pipefail
-        PKG="${{ steps.dist.outputs.target }}"
-        if [ -n "${{ inputs.package-extra }}" ]; then
-          PKG="${PKG}[${{ inputs.package-extra }}]"
-          echo "📦 Installing package with extra: ${{ inputs.package-extra }}"
+        if [ "$DIST_TYPE" = "wheel" ]; then
+          PKG="$WHEEL_PATH"
+        else
+          PKG="$SDIST_PATH"
+        fi
+        echo "📄 Using $DIST_TYPE distribution: $PKG"
+
+        if [ -n "$PACKAGE_EXTRA" ]; then
+          PKG="${PKG}[${PACKAGE_EXTRA}]"
+          echo "📦 Installing package with extra: $PACKAGE_EXTRA"
         else
           echo "📦 Installing package..."
         fi
@@ -207,34 +201,43 @@ runs:
     # Verify package metadata
     - name: Check package metadata
       shell: bash
+      env:
+        PACKAGE_NAME: ${{ inputs.package-name }}
+        PACKAGE_DEPENDENCIES: ${{ inputs.package-dependencies }}
       run: |
         set -euo pipefail
         echo "🔍 Checking package metadata..."
-        bash $GITHUB_ACTION_PATH/scripts/check_metadata.sh \
-          ${{ inputs.package-name }} ${{ inputs.package-dependencies }}
+        bash "$GITHUB_ACTION_PATH/scripts/check_metadata.sh" \
+          "$PACKAGE_NAME" "$PACKAGE_DEPENDENCIES"
         echo "✅ Metadata checks passed"
 
     # Verify dependency tree
     - name: Check dependency tree
       shell: bash
+      env:
+        PACKAGE_NAME: ${{ inputs.package-name }}
+        PACKAGE_DEPENDENCIES: ${{ inputs.package-dependencies }}
       run: |
         set -euo pipefail
         echo "🔍 Checking dependency tree..."
-        bash $GITHUB_ACTION_PATH/scripts/check_dependency_tree.sh \
-          ${{ inputs.package-name }} ${{ inputs.package-dependencies }}
+        bash "$GITHUB_ACTION_PATH/scripts/check_dependency_tree.sh" \
+          "$PACKAGE_NAME" "$PACKAGE_DEPENDENCIES"
         echo "✅ Dependency tree checks passed"
 
     # Determine module name from package name
     - name: Find module name
       shell: bash
+      env:
+        INPUT_MODULE_NAME: ${{ inputs.module-name }}
+        PACKAGE_NAME: ${{ inputs.package-name }}
       run: |
-        MODULE_NAME=${{ inputs.module-name }}
+        set -euo pipefail
+        MODULE_NAME="$INPUT_MODULE_NAME"
         if [ -z "$MODULE_NAME" ]; then
-          PACKAGE_NAME=${{ inputs.package-name }}
           MODULE_NAME="${PACKAGE_NAME//-/_}"
         fi
         echo "MODULE_NAME=$MODULE_NAME"
-        echo "MODULE_NAME=$MODULE_NAME" >> $GITHUB_ENV
+        echo "MODULE_NAME=$MODULE_NAME" >> "$GITHUB_ENV"
 
     # Test package import and version
     - name: Verify package import and version
@@ -261,7 +264,7 @@ runs:
         set -euo pipefail
         if uv pip install pyright 2>/dev/null; then
           echo "🔍 Running type hint validation..."
-          $GITHUB_ACTION_PATH/scripts/check_type.sh $MODULE_NAME
+          bash "$GITHUB_ACTION_PATH/scripts/check_type.sh" "$MODULE_NAME"
         else
           echo "⚠️  Pyright not available, skipping type check"
         fi
@@ -271,9 +274,13 @@ runs:
       shell: bash
       if: always()
       run: |
-        set -euo pipefail
-        echo "🔍 Show wheel content"
-        unzip -l $WHEEL_PATH
-        echo ""
-        echo "🔍 Show sdist content"
-        tar -tzf $SDIST_PATH
+        set -uo pipefail
+        for f in "${WHEEL_PATH:-}" "${SDIST_PATH:-}"; do
+          [ -n "$f" ] || continue
+          echo "🔍 Show content of $f"
+          case "$f" in
+            *.whl) unzip -l "$f" ;;
+            *) tar -tzf "$f" ;;
+          esac
+          echo ""
+        done
