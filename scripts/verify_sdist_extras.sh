@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # verify_sdist_extras.sh - Verify that extras are defined in sdist metadata
 #
