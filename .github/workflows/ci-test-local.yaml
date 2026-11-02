@@ -1,13 +1,23 @@
-name: Test Stable Action
+name: Test Local Action
 
 on:
   workflow_call:
-  workflow_dispatch: # to trigger manually
+    inputs:
+      test-matrix:
+        description: "JSON test matrix from lib-get-test-matrix.yaml, loaded once by the caller"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
+  # Load the extras from pyproject.toml, plus "" for a baseline "no extra" build.
+  get-extras:
+    uses: ./.github/workflows/lib-get-package-extras.yaml
+    with:
+      extra-values: '[""]'
+
   test:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 2
@@ -15,33 +25,21 @@ jobs:
       max-parallel: 8
       fail-fast: false
       matrix:
-        os:
-          [
-            ubuntu-latest,
-            ubuntu-24.04,
-            ubuntu-22.04,
-            ubuntu-24.04-arm,
-            ubuntu-22.04-arm,
-            macos-latest,
-            macos-26,
-            macos-15,
-            macos-14,
-            macos-15-intel,
-          ]
-        python-version:
-          ["3.14", "3.14t", "3.13", "3.13t", "3.12", "3.11", "3.10"]
+        os: ${{ fromJson(inputs.test-matrix).os_matrix }}
+        python-version: ${{ fromJson(inputs.test-matrix).python_versions }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
 
       - name: Verify Build
-        uses: durandtibo/verify-uv-build-action@v0.0.7
+        uses: ./
         with:
           package-name: myproject
           python-version: ${{ matrix.python-version }}
 
   test-extra:
+    needs: get-extras
     runs-on: ubuntu-latest
     timeout-minutes: 2
     strategy:
@@ -49,14 +47,14 @@ jobs:
       fail-fast: false
       matrix:
         dist-type: ["sdist", "wheel"]
-        package-extra: ["", "all"]
+        package-extra: ${{ fromJson(needs.get-extras.outputs.extras) }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
 
       - name: Verify Build
-        uses: durandtibo/verify-uv-build-action@v0.0.7
+        uses: ./
         with:
           dist-type: ${{ matrix.dist-type }}
           package-name: myproject
@@ -70,13 +68,14 @@ jobs:
   invalid-dist-type:
     runs-on: ubuntu-latest
     continue-on-error: true
+    timeout-minutes: 2
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
 
       - name: Call composite action with invalid value
         id: run_action
-        uses: durandtibo/verify-uv-build-action@v0.0.7
+        uses: ./
         with:
           dist-type: tar
           package-name: myproject
@@ -99,7 +98,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
 
       - name: Remove py.typed
         run: |
@@ -107,7 +106,7 @@ jobs:
 
       - name: Call composite action
         id: run_action
-        uses: durandtibo/verify-uv-build-action@v0.0.7
+        uses: ./
         with:
           package-name: myproject
         continue-on-error: true
@@ -129,11 +128,11 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
 
       - name: Call composite action
         id: run_action
-        uses: durandtibo/verify-uv-build-action@v0.0.7
+        uses: ./
         with:
           package-name: myproject
           package-extra: missing
@@ -158,11 +157,11 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
 
       - name: Call composite action
         id: run_action
-        uses: durandtibo/verify-uv-build-action@v0.0.7
+        uses: ./
         with:
           package-name: myproject
           package-extra: missing
