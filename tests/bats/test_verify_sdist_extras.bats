@@ -757,3 +757,7 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" =~ "pyproject.toml" ]]
 }
+
+@test "script uses portable env bash shebang" {
+	[ "$(head -n 1 scripts/verify_sdist_extras.sh)" = "#!/usr/bin/env bash" ]
+}

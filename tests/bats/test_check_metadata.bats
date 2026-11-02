@@ -179,3 +179,33 @@ EOF
 	[ "$status" -eq 0 ]
 	[[ "$output" =~ "✅ Required dependency 'coola' found" ]]
 }
+
+@test "fails when name is only a substring of metadata name" {
+	# 'project' is a substring of 'Name: myproject' but must not match
+	cat > "$TEST_DIR/bin/uv" << 'EOF2'
+#!/usr/bin/env bash
+printf 'Name: myproject\nRequires:\n'
+EOF2
+	run bash "$SCRIPT" project
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"not found in metadata"* ]]
+}
+
+@test "fails when dependency is only a prefix of a real dependency" {
+	cat > "$TEST_DIR/bin/uv" << 'EOF2'
+#!/usr/bin/env bash
+printf 'Name: myproject\nRequires: numpydoc, pandas\n'
+EOF2
+	run bash "$SCRIPT" myproject numpy
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"'numpy' not found"* ]]
+}
+
+@test "dependency match is case-insensitive and exact" {
+	cat > "$TEST_DIR/bin/uv" << 'EOF2'
+#!/usr/bin/env bash
+printf 'Name: myproject\nRequires: Numpy, pandas\n'
+EOF2
+	run bash "$SCRIPT" myproject "numpy,pandas"
+	[ "$status" -eq 0 ]
+}
