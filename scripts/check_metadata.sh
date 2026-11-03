@@ -44,7 +44,11 @@ echo "$METADATA"
 echo ""
 
 # Check package name
-if ! echo "$METADATA" | grep -qix "Name: $PACKAGE_NAME"; then
+# Names are compared in normalized form (PEP 503): case-insensitive,
+# with runs of "-", "_" and "." treated as equal.
+normalize() { tr '[:upper:]_.' '[:lower:]--' | tr -s '-'; }
+installed_name=$(sed -n 's/^Name:[[:space:]]*//p' <<<"$METADATA" | head -n 1 | normalize)
+if [ "$installed_name" != "$(printf '%s' "$PACKAGE_NAME" | normalize)" ]; then
 	echo "❌ Error: Package name '$PACKAGE_NAME' not found in metadata" >&2
 	exit 1
 fi
@@ -59,7 +63,10 @@ if [ -n "$DEPENDENCIES" ]; then
 		# Trim whitespace from dependency name
 		dep=$(echo "$dep" | xargs)
 
-		if ! echo "$METADATA" | grep -qiE "^Requires:.*(^|[ ,])${dep}(,|$)"; then
+		[ -n "$dep" ] || continue
+		# Escape regex metacharacters so names like "zope.interface" match literally
+		dep_re=$(printf '%s' "$dep" | sed 's/[][\.*^$+?(){}|/]/\\&/g')
+		if ! echo "$METADATA" | grep -qiE "^Requires:.*(^|[ ,])${dep_re}(,|$)"; then
 			echo "❌ Error: Required dependency '$dep' not found in package metadata" >&2
 			exit 1
 		fi
