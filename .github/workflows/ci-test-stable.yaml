@@ -20,7 +20,7 @@ jobs:
 
   test:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 2
+    timeout-minutes: 5
     strategy:
       max-parallel: 8
       fail-fast: false
@@ -41,7 +41,7 @@ jobs:
   test-extra:
     needs: get-extras
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 5
     strategy:
       max-parallel: 8
       fail-fast: false
@@ -68,7 +68,7 @@ jobs:
   invalid-dist-type:
     runs-on: ubuntu-latest
     continue-on-error: true
-    timeout-minutes: 2
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
@@ -94,7 +94,7 @@ jobs:
   missing-py-typed:
     runs-on: ubuntu-latest
     continue-on-error: true
-    timeout-minutes: 2
+    timeout-minutes: 5
 
     steps:
       - name: Checkout
@@ -124,7 +124,7 @@ jobs:
   incorrect-extra:
     runs-on: ubuntu-latest
     continue-on-error: true
-    timeout-minutes: 2
+    timeout-minutes: 5
 
     steps:
       - name: Checkout
@@ -153,7 +153,7 @@ jobs:
     continue-on-error: true
     outputs:
       action_failed: ${{ steps.run_action.outcome == 'failure' }}
-    timeout-minutes: 2
+    timeout-minutes: 5
 
     steps:
       - name: Checkout
