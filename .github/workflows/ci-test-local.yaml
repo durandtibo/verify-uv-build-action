@@ -1,3 +1,7 @@
+# Local action test workflow.
+# Runs the action from this checkout (uses: ./) across the Python/OS matrix,
+# with every package extra, and checks that invalid inputs fail as expected.
+
 name: Test Local Action
 
 on:

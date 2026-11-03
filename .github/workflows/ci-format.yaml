@@ -1,3 +1,7 @@
+# Formatting and linting workflow.
+# Checks shell, Markdown, and YAML files follow the project style guidelines.
+# Each check runs through the Makefile, so it can be reproduced locally.
+
 name: Format
 on:
   workflow_call:
@@ -7,43 +11,44 @@ permissions:
   contents: read
 
 jobs:
-  format:
+  shell:
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
 
-      - name: Set up Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # ratchet:actions/setup-node@v7
-        with:
-          node-version: "latest"
-
-      - name: Install dependencies
+      # make lint-shell/check-format-shell use `xargs -r`, so they no-op
+      # cleanly when the repo has no shell scripts.
+      - name: Check shell formatting
         run: |
-          echo "📦 Installing all dependencies..."
-          npm install -g markdownlint-cli
-          sudo apt-get update
-          sudo apt-get install -y shellcheck yamllint
-          sudo snap install shfmt
+          make check-format-shell
 
-      - name: Run markdownlint
+      - name: Lint shell scripts
         run: |
-          echo "📝 Running markdownlint..."
-          markdownlint -- **/*.md
+          make lint-shell
 
-      - name: Run ShellCheck
-        run: |
-          echo "🐚 Running ShellCheck..."
-          shellcheck -- **/*.sh || exit 1
+  markdown:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
 
-      - name: Run shfmt
-        run: |
-          echo "✨ Checking formatting using shfmt..."
-          shfmt -d -- **/*.sh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
 
-      - name: Run yamllint
+      - name: Lint Markdown files
         run: |
-          echo "🔍 Running yamllint..."
-          yamllint -f colored .
+          make lint-markdown
+
+  yaml:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+
+      - name: Lint YAML files
+        run: |
+          make lint-yaml

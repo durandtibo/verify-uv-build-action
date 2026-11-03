@@ -1,3 +1,7 @@
+# Stable action test workflow.
+# Same checks as ci-test-local.yaml but against the latest stable release of
+# the action, to catch regressions between the release and the test fixtures.
+
 name: Test Stable Action
 
 on:

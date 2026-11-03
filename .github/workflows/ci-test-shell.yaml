@@ -1,3 +1,6 @@
+# Shell unit test workflow.
+# Runs the bats unit tests of the action's shell scripts on every OS of the matrix.
+
 name: Shell Unit Tests
 
 on:
