@@ -37,10 +37,10 @@ inputs:
   dist-type:
     description: |
       The distribution artifact that is installed and tested. Choose
-      either wheel or sdist. Both artifacts are always built and
-      inspected.
+      wheel, sdist or both. Both artifacts are always built and
+      inspected, whatever the value.
     required: false
-    default: "wheel"
+    default: "both"
   python-version:
     description: "Python version to use"
     required: false
@@ -72,200 +72,65 @@ inputs:
 outputs:
   wheel-path:
     description: "Absolute path of the built wheel"
-    value: ${{ steps.build.outputs.wheel-path }}
+    value: ${{ steps.verify.outputs.wheel-path }}
   sdist-path:
     description: "Absolute path of the built sdist"
-    value: ${{ steps.build.outputs.sdist-path }}
+    value: ${{ steps.verify.outputs.sdist-path }}
   version:
     description: "Version from the built wheel metadata"
-    value: ${{ steps.build.outputs.version }}
+    value: ${{ steps.verify.outputs.version }}
 
 runs:
   using: "composite"
   steps:
-    # Step 1: validate the inputs before doing any work
-    - name: Validate inputs
-      shell: bash
-      env:
-        PACKAGE_NAME: ${{ inputs.package-name }}
-        DIST_TYPE: ${{ inputs.dist-type }}
-        CHECK_TYPES: ${{ inputs.check-types }}
-        PROJECT_PATH: ${{ inputs.project-path }}
-      run: |
-        set -euo pipefail
-        if [[ "$DIST_TYPE" != "wheel" && "$DIST_TYPE" != "sdist" ]]; then
-          echo "❌ Input 'dist-type' must be 'wheel' or 'sdist' (got '$DIST_TYPE')" >&2
-          exit 1
-        fi
-        if [[ "$CHECK_TYPES" != "true" && "$CHECK_TYPES" != "false" ]]; then
-          echo "❌ Input 'check-types' must be 'true' or 'false' (got '$CHECK_TYPES')" >&2
-          exit 1
-        fi
-        if [ ! -f "$PROJECT_PATH/pyproject.toml" ]; then
-          echo "❌ No pyproject.toml found in project-path (expected '$PROJECT_PATH/pyproject.toml')" >&2
-          exit 1
-        fi
-        if [[ ! "$PACKAGE_NAME" =~ ^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$ ]]; then
-          echo "❌ Input 'package-name' is not a valid distribution name (got '$PACKAGE_NAME')" >&2
-          exit 1
-        fi
-        echo "✅ Inputs are valid"
-
-    # Step 2: install uv and Python. No environment is activated and
+    # Step 1: install uv and Python. No environment is activated and
     # nothing is created in the workspace.
     - name: Set up uv
       uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # ratchet:astral-sh/setup-uv@v10.3.3
       with:
         python-version: ${{ inputs.python-version }}
 
-    # Step 3: build into a fresh directory, so that no stale artifact exists.
-    # --no-sources ignores [tool.uv.sources]: the build resolves requirements
-    # like a user installing from PyPI.
-    - name: Build
-      id: build
-      shell: bash
-      env:
-        PROJECT_PATH: ${{ inputs.project-path }}
-        DIST_DIR: ${{ runner.temp }}/verify-uv-build/dist
-      run: |
-        set -euo pipefail
-        rm -rf "$DIST_DIR"
-        mkdir -p "$DIST_DIR"
-        echo "📦 Building package..."
-        uv build "$PROJECT_PATH" --no-sources --out-dir "$DIST_DIR"
-
-        shopt -s nullglob
-        wheels=("$DIST_DIR"/*.whl)
-        sdists=("$DIST_DIR"/*.tar.gz)
-        if [ "${#wheels[@]}" -ne 1 ]; then
-          echo "❌ Expected exactly 1 wheel in the build output (got ${#wheels[@]})" >&2
-          exit 1
-        fi
-        if [ "${#sdists[@]}" -ne 1 ]; then
-          echo "❌ Expected exactly 1 sdist in the build output (got ${#sdists[@]})" >&2
-          exit 1
-        fi
-
-        version="$(unzip -p "${wheels[0]}" '*.dist-info/METADATA' | sed -n 's/^Version:[[:space:]]*//p' | sed -n 1p)"
-        if [ -z "$version" ]; then
-          echo "❌ No Version found in the wheel metadata (expected a Version header in ${wheels[0]})" >&2
-          exit 1
-        fi
-        {
-          echo "wheel-path=${wheels[0]}"
-          echo "sdist-path=${sdists[0]}"
-          echo "version=$version"
-        } >> "$GITHUB_OUTPUT"
-        echo "✅ Built ${wheels[0]##*/} and ${sdists[0]##*/}"
-
-    # Step 4: cheap checks on both archives, before any install
-    - name: Check artifacts
+    # Step 2: validate, build, check the archives, install, check the
+    # installation and the types. See scripts/verify.sh for the phases. The
+    # same script runs locally: PACKAGE_NAME=<name> bash scripts/verify.sh
+    - name: Verify
+      id: verify
       shell: bash
       env:
         PACKAGE_NAME: ${{ inputs.package-name }}
-        INPUT_MODULE_NAME: ${{ inputs.module-name }}
+        MODULE_NAME: ${{ inputs.module-name }}
         PACKAGE_EXTRA: ${{ inputs.package-extra }}
-        CHECK_TYPES: ${{ inputs.check-types }}
-        TWINE_VERSION: ${{ inputs.twine-version }}
-        WHEEL_PATH: ${{ steps.build.outputs.wheel-path }}
-        SDIST_PATH: ${{ steps.build.outputs.sdist-path }}
-      run: |
-        set -euo pipefail
-        status=0
-        for archive in "$WHEEL_PATH" "$SDIST_PATH"; do
-          bash "$GITHUB_ACTION_PATH/scripts/check_dist.sh" \
-            "$archive" "$PACKAGE_NAME" "$INPUT_MODULE_NAME" "$PACKAGE_EXTRA" "$CHECK_TYPES" || status=1
-        done
-        if [ "$status" -ne 0 ]; then
-          echo "❌ Artifact checks failed (see errors above)" >&2
-          exit 1
-        fi
-        echo "🔍 Running twine check..."
-        if ! uvx "twine@$TWINE_VERSION" check --strict "$WHEEL_PATH" "$SDIST_PATH"; then
-          echo "❌ twine check failed (expected no error or warning, see output above)" >&2
-          exit 1
-        fi
-        echo "✅ Artifact checks passed"
-
-    # Step 5: install the selected artifact in a fresh venv outside the workspace
-    - name: Install
-      shell: bash
-      env:
-        PACKAGE_NAME: ${{ inputs.package-name }}
-        DIST_TYPE: ${{ inputs.dist-type }}
-        PACKAGE_EXTRA: ${{ inputs.package-extra }}
-        WHEEL_PATH: ${{ steps.build.outputs.wheel-path }}
-        SDIST_PATH: ${{ steps.build.outputs.sdist-path }}
-        VIRTUAL_ENV: ${{ runner.temp }}/verify-uv-build/venv
-      run: |
-        set -euo pipefail
-        if [ "$DIST_TYPE" = "wheel" ]; then
-          target="$WHEEL_PATH"
-        else
-          target="$SDIST_PATH"
-        fi
-        extras="${PACKAGE_EXTRA// /}"
-        if [ -n "$extras" ]; then
-          # A direct reference, because "<absolute path>[extra]" is not
-          # parsed by uv.
-          target="${PACKAGE_NAME}[${extras}] @ file://${target}"
-        fi
-        rm -rf "$VIRTUAL_ENV"
-        uv venv "$VIRTUAL_ENV"
-        echo "📦 Installing $target"
-        if ! uv pip install "$target"; then
-          echo "❌ Installation failed (expected $target to install, see output above)" >&2
-          exit 1
-        fi
-        echo "✅ Package installed"
-
-    # Step 6: checks that need an environment. Runs outside the checkout so
-    # that the source tree cannot be imported instead of the installed package.
-    - name: Check install
-      shell: bash
-      working-directory: ${{ runner.temp }}
-      env:
-        PACKAGE_NAME: ${{ inputs.package-name }}
-        INPUT_MODULE_NAME: ${{ inputs.module-name }}
         PACKAGE_DEPENDENCIES: ${{ inputs.package-dependencies }}
-        EXPECTED_VERSION: ${{ steps.build.outputs.version }}
-        VIRTUAL_ENV: ${{ runner.temp }}/verify-uv-build/venv
-      run: |
-        set -euo pipefail
-        export PATH="$VIRTUAL_ENV/bin:$PATH"
-        bash "$GITHUB_ACTION_PATH/scripts/check_install.sh" \
-          "$PACKAGE_NAME" "$INPUT_MODULE_NAME" "$PACKAGE_DEPENDENCIES" "$EXPECTED_VERSION"
-
-    # Step 7: type completeness. pyright runs through uvx, it is not installed
-    # in the environment under test.
-    - name: Check types
-      if: ${{ inputs.check-types == 'true' }}
-      shell: bash
-      working-directory: ${{ runner.temp }}
-      env:
-        PACKAGE_NAME: ${{ inputs.package-name }}
-        INPUT_MODULE_NAME: ${{ inputs.module-name }}
+        DIST_TYPE: ${{ inputs.dist-type }}
+        PROJECT_PATH: ${{ inputs.project-path }}
+        TWINE_VERSION: ${{ inputs.twine-version }}
         PYRIGHT_VERSION: ${{ inputs.pyright-version }}
-        VIRTUAL_ENV: ${{ runner.temp }}/verify-uv-build/venv
+        CHECK_TYPES: ${{ inputs.check-types }}
       run: |
         set -euo pipefail
-        bash "$GITHUB_ACTION_PATH/scripts/check_types.sh" "$PACKAGE_NAME" "$INPUT_MODULE_NAME"
+        bash "$GITHUB_ACTION_PATH/scripts/verify.sh" || { echo "❌ Verification failed (see errors above)" >&2; exit 1; }
 
-    # Display artifact contents for debugging, even when a step failed
+    # Content of the archives in the job summary, even when a check failed
     - name: Show artifacts
       if: always()
       shell: bash
       env:
-        WHEEL_PATH: ${{ steps.build.outputs.wheel-path }}
-        SDIST_PATH: ${{ steps.build.outputs.sdist-path }}
+        WHEEL_PATH: ${{ steps.verify.outputs.wheel-path }}
+        SDIST_PATH: ${{ steps.verify.outputs.sdist-path }}
       run: |
         set -uo pipefail
+        summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
         for f in "$WHEEL_PATH" "$SDIST_PATH"; do
           [ -n "$f" ] || continue
-          echo "::group::Content of ${f##*/}"
-          case "$f" in
-            *.whl) unzip -l "$f" ;;
-            *) tar -tzf "$f" ;;
-          esac
-          echo "::endgroup::"
+          {
+            echo "<details><summary>Content of ${f##*/}</summary>"
+            echo
+            echo '```text'
+            case "$f" in
+              *.whl) unzip -Z1 "$f" ;;
+              *) tar -tzf "$f" ;;
+            esac
+            echo '```'
+            echo "</details>"
+          } >> "$summary"
         done

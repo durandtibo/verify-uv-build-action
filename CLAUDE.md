@@ -7,9 +7,11 @@ Guidance for coding agents working in this repository.
 A GitHub composite action (`action.yaml`) that builds a Python package with `uv build` and verifies
 the resulting wheel and sdist: name, version, `py.typed` marker and extras in the core metadata,
 `twine check`, a clean install with its direct dependencies, the import, and type completeness
-(pyright). The checks that need real logic live in `scripts/*.sh` (bash, must work on GNU/Linux and
-BSD/macOS) and are tested with [bats](https://github.com/bats-core/bats-core) in `tests/bats/`:
-`lib.sh` (shared helpers), `check_dist.sh`, `check_install.sh` and `check_types.sh`.
+(pyright). All the logic lives in `scripts/*.sh` (bash, must work on GNU/Linux and BSD/macOS) and is
+tested with [bats](https://github.com/bats-core/bats-core) in `tests/bats/`: `verify.sh` (the entry
+point of the action, also run locally with `PACKAGE_NAME=<pkg> bash scripts/verify.sh`), `lib.sh`
+(shared helpers), `check_dist.sh`, `check_install.sh` and `check_types.sh`. `action.yaml` only wires
+the inputs to `verify.sh`.
 
 `src/myproject/` and `pyproject.toml` are a small dummy Python package
 used as the fixture that the action builds and verifies in CI. They are not part of the action. The
@@ -23,9 +25,9 @@ used as the fixture that the action builds and verifies in CI. They are not part
   the root `Makefile` instead.
 - Run `make format` and `make lint` before committing. Fix what they report instead of disabling
   rules.
-- Run the shell tests with `bats tests/bats/` (install `bats-core` with `make install-bats` if
-  missing). Some workflows and the action itself cannot be run locally; say so in the PR instead of
-  claiming they pass.
+- Run the shell tests with `make test-shell` or `bats tests/bats/` (install `bats-core` with
+  `make install-bats` if missing). Some workflows and the action itself cannot be run locally; say
+  so in the PR instead of claiming they pass.
 
 ## Git workflow
 
@@ -70,8 +72,9 @@ Files are prefixed by role:
   - `ci-format.yaml`: shell, Markdown and YAML lint/format checks.
   - `ci-shell.yaml`: bats tests on the OS matrix.
   - `ci-action.yaml`: runs the action from this checkout (`uses: ./`), i.e. the version not
-    released yet, across the Python/OS matrix with every package extra, and checks that invalid
-    inputs fail as expected.
+    released yet, across the Python/OS matrix with every package extra, and runs the failure and
+    edge cases of `tests/cases.json` (one row per case: inputs, optional `setup` snippet, expected
+    outcome). `scripts/load-cases.sh` turns the table into a matrix. Add a case as a new row.
 - `nightly.yaml`: nightly entry point (schedule and manual runs) that calls
   `nightly-test-released.yaml`, which runs the same checks as `ci-action.yaml` against the latest
   released action. Update its pinned release when a new version is released.
@@ -101,6 +104,7 @@ Conventions:
 - Cover success, failure, and edge cases (missing extras, empty lists, missing or invalid files).
 - Every bug fix needs a regression test that fails without the fix.
 - If a check fails for a real reason, report it rather than weakening the test.
+- Changes to `verify.sh` are tested with `uv`/`uvx` mocked on `PATH` (`tests/bats/test_verify.bats`).
 - Changes to `action.yaml` behaviour are covered by the `ci-action.yaml` matrix; extend it when
   adding an input or a check.
 

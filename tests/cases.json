@@ -27,8 +27,7 @@
   {"name": "tool.uv.sources is ignored", "expect": "success", "setup": "printf '\\n[tool.uv.sources]\\ncoola = { path = \"/does/not/exist\" }\\n' >> pyproject.toml"},
   {
     "name": "project uv config is ignored",
-    "comment": "Regression G2: the install must not read the project's [tool.uv]. Fails until PR 4 moves the install out of the workspace.",
-    "skip": "enabled by the verify.sh PR (G2)",
+    "comment": "Regression G2: the install must not read the project's [tool.uv].",
     "expect": "success",
     "setup": "printf '\\n[tool.uv]\\nindex-url = \"http://127.0.0.1:9/simple\"\\n' >> pyproject.toml"
   },

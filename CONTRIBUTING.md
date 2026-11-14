@@ -92,11 +92,12 @@ verify-uv-build-action/
 ├── .github/
 │   ├── workflows/        # GitHub Actions workflows
 │   └── dependabot.yml    # Dependabot configuration
-├── scripts/              # Shell scripts: lib.sh, check_dist.sh, check_install.sh, check_types.sh
+├── scripts/              # Shell scripts: verify.sh, lib.sh, check_dist.sh, check_install.sh, check_types.sh
 ├── src/
 │   └── myproject/        # Example test package (fixture built in CI)
 ├── tests/
-│   └── bats/             # Unit tests of the scripts, one file per script
+│   ├── bats/             # Unit tests of the scripts, one file per script
+│   └── cases.json        # End-to-end cases of ci-action.yaml
 ├── action.yaml           # Main action definition
 ├── Makefile             # Development commands
 ├── pyproject.toml       # Python project configuration
@@ -161,8 +162,9 @@ The repository includes several test workflows:
 
 - **CI (`ci.yaml`)**: Runs on all pull requests and pushes to main
 - **Format (`ci-format.yaml`)**: Validates shell, Markdown and YAML formatting
-- **Shell Unit Tests (`ci-shell.yaml`)**: Runs the bats tests on multiple OS
-- **Test Action (`ci-action.yaml`)**: Tests the action using local code
+- **Shell Unit Tests (`ci-shell.yaml`)**: Runs `make test-shell` (the bats tests) on multiple OS
+- **Test Action (`ci-action.yaml`)**: Tests the action using local code; the failure cases are
+  rows of `tests/cases.json`
 - **Nightly Tests (`nightly.yaml`)**: Tests the latest released action daily
   (`nightly-test-released.yaml`)
 
