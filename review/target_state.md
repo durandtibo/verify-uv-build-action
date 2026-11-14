@@ -219,17 +219,19 @@ Kept as is: `ci.yaml`, `ci-format.yaml`, `ci-verify-workflows.yaml`, `lib-*.yaml
 
 Changes:
 
-- `ci-action.yaml` gets an optional input `action-ref` (default empty). Every job first runs
-  `actions/checkout` for the fixture, then, **only when `action-ref` is set**, a second checkout of
-  this repository at that ref into `.released-action`. Because `uses:` cannot be dynamic, each job
-  has two action steps: `uses: ./` with `if: inputs.action-ref == ''`, and
-  `uses: ./.released-action` with `if: inputs.action-ref != ''`, both with the same `with:`. See D2
-  for the alternative.
-- `nightly-test-released.yaml` is **deleted** (G7). `nightly.yaml` resolves the latest release tag
-  (`gh release view --json tagName`, or the latest `v*` tag), then calls `ci-action.yaml` with
-  `action-ref: <tag>`. When `action-ref` is set, `test-cases` is skipped: the failure cases test
-  unreleased behaviour and do not depend on upstream changes. The nightly run keeps `test`,
-  `test-extra`, and adds `test-latest-tools`. No manual re-pin at release.
+- `ci-action.yaml` gets a boolean input `released` (default `false`), the pattern used in
+  `durandtibo/sign-pypi-package-action`. Each job that runs the action has two steps with the same
+  `with:`: `uses: ./` with `if: ${{ !inputs.released }}`, and `uses: durandtibo/verify-uv-build-action@<sha> # ratchet:...@v0.1.0`
+  with `if: ${{ inputs.released }}`. The released step is pinned to a SHA like every other third-party
+  action, so `bot-pin-action.yaml` and the supply-chain rules apply unchanged.
+- Test rows that the released version does not support yet are excluded when `released` is true.
+  Each row of the `test-cases` matrix gets a `released: true` key when the last release supports it,
+  and every step of that job is guarded by `if: ${{ !inputs.released || matrix.released }}`.
+  At release time: flag the rows the new version supports and bump the SHA and the ratchet comment
+  (this is the existing release step of `CLAUDE.md`, one place instead of two files).
+- `nightly-test-released.yaml` is **deleted** (G7). `nightly.yaml` calls `ci-action.yaml` with
+  `released: true`, plus `test-latest-tools`. The duplicated copy of the tests disappears; the SHA
+  bump stays a manual release step.
 - `make test-shell` (`bats --recursive tests/bats`) in the root `Makefile`, called by
   `ci-shell.yaml` (G13). `.make/` is shared and is not edited.
 - `ci-shell.yaml`: drop the duplicated "Verify bats installation" and "Show the versions" steps
@@ -242,7 +244,7 @@ Changes:
   checks locally" section reduced to `PACKAGE_NAME=mypkg bash scripts/verify.sh`, troubleshooting
   with one row per `❌` message including the new ones, the migration table below.
 - `CONTRIBUTING.md`: repository structure and test sections list `verify.sh` and `make test-shell`.
-- `CLAUDE.md`: purpose paragraph lists `verify.sh`; workflow section describes `action-ref` and
+- `CLAUDE.md`: purpose paragraph lists `verify.sh`; workflow section describes the `released` input and
   the shortened nightly. These edits are part of the PR that changes the behaviour.
 
 ## 4. Breaking changes and migration
@@ -276,13 +278,15 @@ Changes:
 - No `expected-version` input: callers compare the `version` output with their tag in one line.
 - No new floating tags, no Windows.
 
-## 6. Decisions to confirm
+## 6. Decisions
 
-| #   | Question                                                                               | Recommendation                                                                                                                                                                                                                                                                                                     |
-| --- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| D1  | Default of `dist-type`: `both` or keep `wheel`.                                        | `both`. It matches P1 (verify what is published) and the cost is one extra install. Keep `wheel` only if the first-run speed of the default matters more.                                                                                                                                                          |
-| D2  | How the nightly run executes the released action given that `uses:` cannot be dynamic. | Check out the tag into `.released-action` and use `uses: ./.released-action` through a small conditional pair of steps; the cost is two `uses` lines per job. Alternative: keep a separate nightly workflow, but generated from the same case table. Pick the first unless it makes `ci-action.yaml` hard to read. |
-| D3  | One `Verify` step (`verify.sh`) or keep one YAML step per phase.                       | One step. Per-step UI status is traded for tested logic and a local entry point (3.1). Revert to per-phase steps only if the log groups prove too hard to scan.                                                                                                                                                    |
+| #   | Decision                                                                                                                           | Reason                                                                                                                                                       |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D1  | `dist-type` defaults to `both`.                                                                                                    | Matches P1 (verify what is published). The cost is one extra install. Use `dist-type: wheel` for the old behaviour. Confirmed.                               |
+| D2  | The nightly run reuses `ci-action.yaml` through a `released` input, with two action steps per job (local and pinned released SHA). | Same approach as `sign-pypi-package-action`: no second copy of the tests, SHA-pinned like other actions, row flags say what the release supports. Confirmed. |
+| D3  | One `Verify` step (`verify.sh`) instead of one YAML step per phase.                                                                | Tested logic and a local entry point outweigh per-step status. Confirmed.                                                                                    |
+
+No open decision remains.
 
 ## 7. Implementation order
 
@@ -296,7 +300,7 @@ descriptions must say that CI was not awaited.
 | 2   | `refactor/script-contracts` | `lib.sh` validators and annotations, `python -I`, `check_types.sh` contract, `py.typed` wheel only, version helper.                                                                                                                                                              | G4, G5, G9, G10, G11, G12 |
 | 3   | `chore/make-test-shell`     | `make test-shell`, `ci-shell.yaml` cleanup.                                                                                                                                                                                                                                      | G13                       |
 | 4   | `feat/verify-script`        | `verify.sh` and `test_verify.bats`; `action.yaml` reduced to setup, verify, summary; unique work directories; install outside the workspace; `dist-type: both`; README, CONTRIBUTING and `CLAUDE.md` updates; enable the cases of PR 1. The only PR that changes the public API. | G1, G2, G3, G15           |
-| 5   | `ci/nightly-latest`         | `action-ref` input, delete `nightly-test-released.yaml`, nightly calls `ci-action.yaml`, `test-latest-tools`.                                                                                                                                                                    | G7, G8                    |
+| 5   | `ci/nightly-latest`         | `released` input and `released: true` row flags, delete `nightly-test-released.yaml`, nightly calls `ci-action.yaml`, `test-latest-tools`.                                                                                                                                       | G7, G8                    |
 | 6   | `docs/readme-v0-1-0`        | README details (`checkout@v7`, `fetch-depth: 0`, troubleshooting, `test_readme.bats`), migration table.                                                                                                                                                                          | G14, P13                  |
 | 7   | `chore/release-v0-1-0`      | Tag `v0.1.0` (exact tag, no floating tag). No pin to update anymore.                                                                                                                                                                                                             | P11                       |
 
@@ -309,7 +313,8 @@ The target state is reached when:
   `run:`, and its inputs match the README table (checked by `test_readme.bats`).
 - `PACKAGE_NAME=<pkg> bash scripts/verify.sh` runs the full verification locally.
 - Each of G1 to G12 has a test that fails on the old behaviour (bats or a `ci-action.yaml` case).
-- `nightly-test-released.yaml` no longer exists, and a release needs no workflow edit.
+- `nightly-test-released.yaml` no longer exists; a release edits one pinned SHA in
+  `ci-action.yaml` and the `released` row flags.
 - CI proves, end to end, that placeholder version, twine, missing marker, missing extra, missing
   dependency, wrong names and type incompleteness each fail the action, and that stale `dist/`,
   `[tool.uv]` config and `[tool.uv.sources]` do not.
