@@ -11,7 +11,11 @@ setup() {
 	# Fake uv: `uv pip show` prints $SHOW_FILE, fails if it does not exist.
 	cat >"${WORK}/bin/uv" <<'FAKE'
 #!/usr/bin/env bash
-echo "$*" >"${WORK}/uv_args"
+echo "$*" >>"${WORK}/uv_args"
+if [ "$2" = "check" ]; then
+	[ -z "${CHECK_ERROR:-}" ] || { echo "${CHECK_ERROR}" >&2; exit 1; }
+	exit 0
+fi
 [ -f "${SHOW_FILE}" ] || { echo "warning: Package(s) not found" >&2; exit 1; }
 cat "${SHOW_FILE}"
 FAKE
@@ -190,5 +194,21 @@ show() {
 @test "uv pip show targets the venv and ignores the project configuration" {
 	show mypkg 1.0 ""
 	run call check_install "${WORK}/venv" mypkg
-	[ "$(cat "${WORK}/uv_args")" = "pip show --no-config --python ${WORK}/venv mypkg" ]
+	grep -Fxq "pip show --no-config --python ${WORK}/venv mypkg" "${WORK}/uv_args"
+	grep -Fxq "pip check --no-config --python ${WORK}/venv" "${WORK}/uv_args"
+}
+
+@test "uv pip check failing fails the check, with its output" {
+	show mypkg 1.0 ""
+	CHECK_ERROR="mypkg 1.0 requires foo>=2, but 1.0 is installed" run --separate-stderr call check_install "${WORK}/venv" mypkg
+	[ "$status" -eq 1 ]
+	[[ "$stderr" =~ "broken dependencies" ]]
+	[[ "$stderr" =~ "requires foo>=2" ]]
+}
+
+@test "uv pip check failure is reported with the other failures" {
+	show other 1.0 ""
+	CHECK_ERROR="broken" run --separate-stderr call check_install "${WORK}/venv" mypkg
+	[[ "$stderr" =~ "broken dependencies" ]]
+	[[ "$stderr" =~ "wrong installed package name" ]]
 }

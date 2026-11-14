@@ -4,10 +4,11 @@
 #
 # Description:
 #   Runs `uv pip show` once for the package installed in a virtual environment
-#   and checks:
+#   and `uv pip check` on the environment, and checks:
 #     - the installed name matches <package_name> (PEP 503 normalized)
 #     - the installed version is set, is not 0.0.0, and (if given) equals
 #       <expected_version>
+#     - `uv pip check` finds no missing or conflicting dependency
 #     - every requested dependency is listed in `Requires` (normalized)
 #     - the module imports, and its location is inside site-packages
 #   The module is passed to Python as an argument, never interpolated into
@@ -63,7 +64,7 @@ check_install() {
 	local dependencies="${4:-}"
 	local expected_version="${5:-}"
 	local failures=0
-	local info name version requires dep location
+	local info name version requires dep location check_output
 
 	[ -n "${module_name}" ] || module_name="$(default_module_name "${package_name}")"
 
@@ -72,6 +73,10 @@ check_install() {
 		return 1
 	fi
 	echo "${info}"
+	if ! check_output="$(uv pip check --no-config --python "${venv}" 2>&1)"; then
+		log_error "the environment has broken dependencies (expected uv pip check to pass, got: $(tr '\n' ' ' <<<"${check_output}"))"
+		failures=$((failures + 1))
+	fi
 
 	name="$(show_field "${info}" "Name")"
 	if [ "$(normalize_name "${name}")" != "$(normalize_name "${package_name}")" ]; then

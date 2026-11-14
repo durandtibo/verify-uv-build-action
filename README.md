@@ -9,19 +9,19 @@ checks the built files and a clean install, never the source tree.
 
 ## What is verified
 
-| Check                                                                           | Wheel | Sdist | Install |
-| ------------------------------------------------------------------------------- | :---: | :---: | :-----: |
-| Exactly one wheel and one sdist are built (`uv build --no-config --no-sources`) |  ✅   |  ✅   |         |
-| Distribution name matches `package-name` (normalized)                           |  ✅   |  ✅   |   ✅    |
-| Version is not the placeholder `0.0.0`                                          |  ✅   |  ✅   |   ✅    |
-| Installed version equals the built wheel version                                |       |       |   ✅    |
-| Every `package-extra` is in `Provides-Extra`                                    |  ✅   |  ✅   |         |
-| `<module>/py.typed` is present in the wheel (if `check-types`)                  |  ✅   |       |         |
-| Wheel and sdist have the same version                                           |  ✅   |  ✅   |         |
-| `twine check --strict`                                                          |  ✅   |  ✅   |         |
-| Every `package-dependencies` entry is installed                                 |       |       |   ✅    |
-| The module imports from `site-packages`, run outside the checkout               |       |       |   ✅    |
-| Type completeness with `pyright --verifytypes` (if `check-types`)               |       |       |   ✅    |
+| Check                                                                            | Wheel | Sdist | Install |
+| -------------------------------------------------------------------------------- | :---: | :---: | :-----: |
+| Exactly one wheel and one sdist are built (`uv build --no-config --no-sources`)  |  ✅   |  ✅   |         |
+| Distribution name is the same in both archives and matches `package-name` if set |  ✅   |  ✅   |   ✅    |
+| Version is not the placeholder `0.0.0`                                           |  ✅   |  ✅   |   ✅    |
+| Installed version equals the built wheel version                                 |       |       |   ✅    |
+| Every `package-extras` is in `Provides-Extra`                                    |  ✅   |  ✅   |         |
+| `<module>/py.typed` is present in the wheel (if `check-types`)                   |  ✅   |       |         |
+| Wheel and sdist have the same version                                            |  ✅   |  ✅   |         |
+| `twine check --strict`                                                           |  ✅   |  ✅   |         |
+| Every `package-dependencies` entry is installed, `uv pip check` passes           |       |       |   ✅    |
+| The module imports from `site-packages`, run outside the checkout                |       |       |   ✅    |
+| Type completeness with `pyright --verifytypes` (if `check-types`)                |       |       |   ✅    |
 
 Checks run in a fail-fast order: input validation, archive checks (milliseconds), install, then
 checks that need an environment. By default (`dist-type: both`) the wheel and the sdist are each
@@ -63,8 +63,6 @@ jobs:
         with:
           fetch-depth: 0 # only needed when the version comes from VCS tags
       - uses: durandtibo/verify-uv-build-action@v0.1.0
-        with:
-          package-name: mypackage
 ```
 
 Projects that derive the version from VCS tags (`hatch-vcs`, `setuptools-scm`) need
@@ -91,7 +89,7 @@ jobs:
         with:
           package-name: mypackage
           python-version: ${{ matrix.python-version }}
-          package-extra: all
+          package-extras: all
           package-dependencies: numpy
 ```
 
@@ -118,9 +116,9 @@ jobs:
 
 | Input                  | Required | Default | Description                                                                                      |
 | ---------------------- | -------- | ------- | ------------------------------------------------------------------------------------------------ |
-| `package-name`         | Yes      | -       | The name of the package to verify (distribution name on PyPI)                                    |
+| `package-name`         | No       | `""`    | Distribution name on PyPI. Empty: read from the built wheel. Set: asserted equal to it           |
 | `module-name`          | No       | `""`    | The name used in import statements (defaults to package-name with `-` and `.` replaced by `_`)   |
-| `package-extra`        | No       | `""`    | Extras to install and verify, comma-separated (e.g., `dev,test`)                                 |
+| `package-extras`       | No       | `""`    | Extras to install and verify, comma-separated (e.g., `dev,test`)                                 |
 | `package-dependencies` | No       | `""`    | Comma-separated direct dependencies that must be installed                                       |
 | `dist-type`            | No       | `both`  | Artifact that is installed and tested: `wheel`, `sdist` or `both`. Both are always built         |
 | `python-version`       | No       | `3.13`  | Python version to use for testing                                                                |
@@ -131,11 +129,12 @@ jobs:
 
 ## Outputs
 
-| Output       | Description                           |
-| ------------ | ------------------------------------- |
-| `wheel-path` | Absolute path of the built wheel      |
-| `sdist-path` | Absolute path of the built sdist      |
-| `version`    | Version from the built wheel metadata |
+| Output       | Description                                                                               |
+| ------------ | ----------------------------------------------------------------------------------------- |
+| `wheel-path` | Absolute path of the built wheel                                                          |
+| `sdist-path` | Absolute path of the built sdist                                                          |
+| `dist-dir`   | Directory that holds both files, e.g. for `upload-artifact` or `uv publish "$dist_dir"/*` |
+| `version`    | Version from the built wheel metadata                                                     |
 
 ## Requirements
 
@@ -162,7 +161,7 @@ the collapsed log groups.
 | `wrong package name`                                    | `package-name` differs from the `Name` in the metadata (compared in normalized form).  |
 | `wheel and sdist have different versions`               | Fix the version source so that both artifacts report the same version.                 |
 | `invalid version`                                       | The metadata version is missing or `0.0.0`. Fix the version source of the build.       |
-| `extra not defined`                                     | A requested `package-extra` is not in `Provides-Extra`. Fix the extra or the input.    |
+| `extra not defined`                                     | A requested `package-extras` is not in `Provides-Extra`. Fix the extra or the input.   |
 | `py.typed marker missing`                               | Add `<module>/py.typed` to the package, or set `check-types: false`.                   |
 | `core metadata file not found`                          | The archive has no `METADATA` or `PKG-INFO`. It is invalid for PyPI.                   |
 | `twine check failed`                                    | Fix the metadata warnings (for example a missing `readme`).                            |
@@ -179,23 +178,26 @@ the collapsed log groups.
 
 `v0.1.0` has breaking changes.
 
-| Change                                                                      | Migration                                                   |
-| --------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `verify-wheel-extra` and `verify-sdist-extra` are removed                   | Delete them. Remove the extra from `package-extra` instead. |
-| `module.__version__` is no longer required; the metadata version is checked | None.                                                       |
-| twine and pyright failures fail the job; they were silently skipped before  | Fix the cause, or set `check-types: false` for pyright.     |
-| `dist/` is no longer used or written in the workspace                       | Use the `wheel-path` and `sdist-path` outputs.              |
-| `WHEEL_PATH`, `SDIST_PATH` and `MODULE_NAME` are no longer exported         | Use the outputs.                                            |
-| `.venv` is no longer created in the workspace                               | Create your own environment.                                |
-| Names are compared in normalized form; the `uv pip tree` check is removed   | None.                                                       |
-| `py.typed` must be at `<module>/py.typed`, not anywhere in the archive      | Move the marker into the package.                           |
-| `dist-type` defaults to `both` instead of `wheel`                           | Set `dist-type: wheel` for the old behaviour.               |
-| The install ignores the project's `[tool.uv]` and `uv.toml`                 | Set `UV_INDEX_URL` (or another `UV_*` variable).            |
-| `module-name`, `twine-version` and `pyright-version` are validated          | Fix a malformed value.                                      |
-| Wheel and sdist must have the same version                                  | Fix the version source of the build.                        |
-| `py.typed` is checked in the wheel only                                     | None.                                                       |
-| The build uses `uv build --no-config --no-sources`                          | Make the build work without `[tool.uv.sources]`.            |
-| `twine check --strict`                                                      | Fix the metadata warnings.                                  |
+| Change                                                                      | Migration                                                    |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `verify-wheel-extra` and `verify-sdist-extra` are removed                   | Delete them. Remove the extra from `package-extras` instead. |
+| `module.__version__` is no longer required; the metadata version is checked | None.                                                        |
+| twine and pyright failures fail the job; they were silently skipped before  | Fix the cause, or set `check-types: false` for pyright.      |
+| `dist/` is no longer used or written in the workspace                       | Use the `wheel-path` and `sdist-path` outputs.               |
+| `WHEEL_PATH`, `SDIST_PATH` and `MODULE_NAME` are no longer exported         | Use the outputs.                                             |
+| `.venv` is no longer created in the workspace                               | Create your own environment.                                 |
+| Names are compared in normalized form; the `uv pip tree` check is removed   | None.                                                        |
+| `py.typed` must be at `<module>/py.typed`, not anywhere in the archive      | Move the marker into the package.                            |
+| `dist-type` defaults to `both` instead of `wheel`                           | Set `dist-type: wheel` for the old behaviour.                |
+| The install ignores the project's `[tool.uv]` and `uv.toml`                 | Set `UV_INDEX_URL` (or another `UV_*` variable).             |
+| `module-name`, `twine-version` and `pyright-version` are validated          | Fix a malformed value.                                       |
+| Wheel and sdist must have the same version                                  | Fix the version source of the build.                         |
+| `py.typed` is checked in the wheel only                                     | None.                                                        |
+| The build uses `uv build --no-config --no-sources`                          | Make the build work without `[tool.uv.sources]`.             |
+| `twine check --strict`                                                      | Fix the metadata warnings.                                   |
+| `package-extra` is renamed `package-extras`                                 | Rename the input.                                            |
+| The build ignores `[tool.uv]` and `uv.toml` too (`--no-config`)             | Set `UV_INDEX_URL` (or another `UV_*` variable).             |
+| `uv pip check` runs on the installed environment                            | Fix conflicting or missing requirements.                     |
 
 ## Run the checks locally
 
@@ -206,7 +208,7 @@ PACKAGE_NAME=mypackage bash scripts/verify.sh
 ```
 
 The inputs are environment variables with the input names in upper case with `_` (`MODULE_NAME`,
-`PACKAGE_EXTRA`, `DIST_TYPE`, `PROJECT_PATH`, ...). See the header comment of the script. Files are
+`PACKAGE_EXTRAS`, `DIST_TYPE`, `PROJECT_PATH`, ...). See the header comment of the script. Files are
 written in a new directory under `$TMPDIR`.
 
 ## Contributing

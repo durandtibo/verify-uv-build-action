@@ -58,17 +58,17 @@ jobs:
       max-parallel: 8
       fail-fast: false
       matrix:
-        package-extra: ${{ fromJson(needs.get-extras.outputs.extras) }}
+        package-extras: ${{ fromJson(needs.get-extras.outputs.extras) }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
 
+      # package-name is omitted: it is read from the wheel
       - name: Verify Build
         uses: ./
         with:
-          package-name: myproject
-          package-extra: ${{ matrix.package-extra }}
+          package-extras: ${{ matrix.package-extras }}
           package-dependencies: coola
 
   #####################################
@@ -121,7 +121,7 @@ jobs:
         with:
           package-name: ${{ matrix.package-name || 'myproject' }}
           module-name: ${{ matrix.module-name }}
-          package-extra: ${{ matrix.package-extra }}
+          package-extras: ${{ matrix.package-extras }}
           package-dependencies: ${{ matrix.package-dependencies }}
           dist-type: ${{ matrix.dist-type || 'both' }}
           check-types: ${{ matrix.check-types || 'true' }}

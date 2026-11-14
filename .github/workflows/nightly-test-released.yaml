@@ -59,7 +59,7 @@ jobs:
       max-parallel: 8
       fail-fast: false
       matrix:
-        package-extra: ${{ fromJson(needs.get-extras.outputs.extras) }}
+        package-extras: ${{ fromJson(needs.get-extras.outputs.extras) }}
 
     steps:
       - name: Checkout
@@ -69,7 +69,7 @@ jobs:
         uses: durandtibo/verify-uv-build-action@88da014d506b5f0b4f657d4ba8920061ab785620 # ratchet:durandtibo/verify-uv-build-action@v0.0.7
         with:
           package-name: myproject
-          package-extra: ${{ matrix.package-extra }}
+          package-extra: ${{ matrix.package-extras }}
           package-dependencies: coola
 
   #####################################
@@ -122,7 +122,7 @@ jobs:
         with:
           package-name: ${{ matrix.package-name || 'myproject' }}
           module-name: ${{ matrix.module-name }}
-          package-extra: ${{ matrix.package-extra }}
+          package-extra: ${{ matrix.package-extras }}
           package-dependencies: ${{ matrix.package-dependencies }}
           dist-type: ${{ matrix.dist-type || 'wheel' }}
           check-types: ${{ matrix.check-types || 'true' }}

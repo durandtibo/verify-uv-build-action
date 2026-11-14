@@ -4,7 +4,7 @@
   {"name": "missing project-path", "expect": "failure", "project-path": "does/not/exist"},
   {"name": "invalid package-name", "expect": "failure", "package-name": "my project"},
   {"name": "missing py.typed", "expect": "failure", "setup": "rm src/myproject/py.typed", "released": true},
-  {"name": "unknown extra", "expect": "failure", "package-extra": "missing", "released": true},
+  {"name": "unknown extra", "expect": "failure", "package-extras": "missing", "released": true},
   {"name": "missing dependency", "expect": "failure", "package-dependencies": "not-a-dependency"},
   {"name": "wrong package-name", "expect": "failure", "package-name": "other-project"},
   {"name": "wrong module-name", "expect": "failure", "module-name": "other_module"},
@@ -37,7 +37,8 @@
     "expect": "success",
     "setup": "printf '\\n[tool.uv]\\nindex-url = \"http://127.0.0.1:9/simple\"\\n' >> pyproject.toml"
   },
-  {"name": "extra and sdist", "expect": "success", "dist-type": "sdist", "package-extra": "all"},
+  {"name": "dist-type wheel", "expect": "success", "dist-type": "wheel"},
+  {"name": "extra and sdist", "expect": "success", "dist-type": "sdist", "package-extras": "all"},
   {"name": "check-types false without py.typed", "expect": "success", "check-types": "false", "setup": "rm src/myproject/py.typed"},
   {
     "name": "project-path",

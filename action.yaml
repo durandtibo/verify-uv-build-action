@@ -11,8 +11,11 @@ inputs:
   package-name:
     description: |
       The name used to install the package. It is also known as
-      distribution name. For example, it is the name on PyPI.
-    required: true
+      distribution name. For example, it is the name on PyPI. Optional:
+      when empty, it is read from the built wheel. When set, it is
+      asserted equal to the name in the metadata (normalized).
+    required: false
+    default: ""
   module-name:
     description: |
       The name used in import statements. This input is optional
@@ -22,7 +25,7 @@ inputs:
       (a.b is checked as a/b/py.typed).
     required: false
     default: ""
-  package-extra:
+  package-extras:
     description: |
       The package extra(s) to install and verify. A comma-separated
       list is accepted (<extra1>,<extra2>).
@@ -79,6 +82,9 @@ outputs:
   sdist-path:
     description: "Absolute path of the built sdist"
     value: ${{ steps.verify.outputs.sdist-path }}
+  dist-dir:
+    description: "Directory that holds the wheel and the sdist"
+    value: ${{ steps.verify.outputs.dist-dir }}
   version:
     description: "Version from the built wheel metadata"
     value: ${{ steps.verify.outputs.version }}
@@ -104,7 +110,7 @@ runs:
       env:
         PACKAGE_NAME: ${{ inputs.package-name }}
         MODULE_NAME: ${{ inputs.module-name }}
-        PACKAGE_EXTRA: ${{ inputs.package-extra }}
+        PACKAGE_EXTRAS: ${{ inputs.package-extras }}
         PACKAGE_DEPENDENCIES: ${{ inputs.package-dependencies }}
         DIST_TYPE: ${{ inputs.dist-type }}
         PROJECT_PATH: ${{ inputs.project-path }}
