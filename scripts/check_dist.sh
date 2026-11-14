@@ -78,12 +78,6 @@ metadata_values() {
 	' <<<"$1"
 }
 
-default_module_name() {
-	local name="$1"
-	name="${name//-/_}"
-	echo "${name//./_}"
-}
-
 # Check whether the archive contains <module path>/py.typed.
 has_py_typed() {
 	local archive="$1"

@@ -78,3 +78,8 @@ setup() {
 	[ "$status" -eq 0 ]
 	[ -z "$output" ]
 }
+
+@test "default_module_name replaces hyphens and dots with underscores" {
+	run default_module_name "my-pkg.sub"
+	[ "$output" = "my_pkg_sub" ]
+}
