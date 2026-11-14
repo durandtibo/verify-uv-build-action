@@ -59,7 +59,7 @@ untested or misleading, **L** = maintenance cost or polish.
 | G4  | M   | The `py.typed` check on the sdist uses `^[^/]+/(.+/)?<module>/py.typed$`, so `tests/<module>/py.typed` passes. It is also redundant: `uv build` builds the wheel **from the sdist**, so a wheel that contains `<module>/py.typed` proves that the sdist ships it. One strict check on the wheel replaces two.                                                                                                              | `check_dist.sh` `has_py_typed`                |
 | G5  | M   | `module-name` is not validated and is used as a regular expression in `check_dist.sh` (`a+b`, `a(b` break or mis-match). The tool-version inputs are not validated either: any string reaches `uvx "twine@..."` (violates P7).                                                                                                                                                                                             | `action.yaml`, `check_dist.sh`                |
 | G6  | M   | The headline checks are only proven by mocked unit tests. `ci-action.yaml` has no case where twine fails, where the version is `0.0.0`, where pyright reports incompleteness, or that proves `--no-sources` ignores `[tool.uv.sources]` (violates P12).                                                                                                                                                                    | `ci-action.yaml`                              |
-| G7  | M   | `nightly-test-released.yaml` (187 lines) is a hand-copied, older version of `ci-action.yaml`: four copy-pasted failure jobs, the removed `verify-*-extra` inputs, pinned to `v0.0.7`. It must be rewritten by hand and re-pinned at every release (violates P6, P13). The failure cases do not depend on upstream changes, so running them nightly adds cost and no signal.                                                | `nightly-test-released.yaml`                  |
+| G7  | M   | `nightly-test-released.yaml` (187 lines) is a hand-copied, older version of `ci-action.yaml`: four copy-pasted failure jobs, the removed `verify-*-extra` inputs, pinned to `v0.0.7`. The failure cases do not depend on upstream changes, so running them nightly adds cost and no signal; the file should only keep the jobs that can detect a change in the world (P6, P13).                                            | `nightly-test-released.yaml`                  |
 | G8  | M   | Tool pins (`twine` 7.0.0, `pyright` 1.1.414) appear in `action.yaml`, the README and the CI overrides, with no signal that a newer tool breaks the action. Nothing runs the latest upstream tools (violates P12, P13).                                                                                                                                                                                                     | `action.yaml`, `README.md`                    |
 | G9  | L   | Isolation depends on `working-directory`. `check_install.sh` run from the checkout (as the README local instructions allow) silently loses the protection against importing the source tree. `python -I` makes it independent of the cwd.                                                                                                                                                                                  | `check_install.sh` `import_location`          |
 | G10 | L   | Inconsistent script contracts: `check_dist.sh` and `check_install.sh` take `<package> [module]` and default the module themselves; `check_types.sh` only takes a module, so the YAML step sources `lib.sh` to compute it. `INPUT_MODULE_NAME` is passed in three steps.                                                                                                                                                    | `action.yaml` "Check types", `check_types.sh` |
@@ -138,14 +138,14 @@ environment), (2) `Verify`: `bash "$GITHUB_ACTION_PATH/scripts/verify.sh"`, inpu
 
 Phases inside `verify.sh`, each in a log group, in a fail-fast order:
 
-| #   | Phase          | What it does                                                                                                                                                                                                                                              | Changes vs now                                                                                   |
-| --- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| 1   | Validate       | All inputs: enums, `pyproject.toml` exists in `project-path`, package, module and version formats. Reports every invalid input, exit 2.                                                                                                                   | Validation of module and tool versions is new (G5). Runs in the tested script.                   |
-| 2   | Build          | `uv build "$PROJECT_PATH" --no-sources --out-dir "$work/dist"`, exactly one wheel and one sdist, version from the wheel metadata, outputs to `$GITHUB_OUTPUT` (skipped when unset, for local runs).                                                       | Unique `$work` directory (G1). Same checks.                                                      |
-| 3   | Check archives | `check_dist.sh` on the wheel (name, version, extras, `<module>/py.typed`) and on the sdist (name, version, extras). Then the wheel and the sdist must report the same version (G12). Then `uvx twine@<v> check --strict` on both, run from `$work`.       | `py.typed` only on the wheel (G4). Version equality is new. Same failures are reported together. |
-| 4   | Install        | For each selected artifact (`wheel`, `sdist` or both): `uv venv "$work/venv-<type>"`, then `uv pip install` **from `$work`** with the direct reference when extras are set. `UV_*` variables of the caller are respected, the project config is not (G2). | Runs outside the workspace (G2). Loops over `both`.                                              |
-| 5   | Check install  | `check_install.sh` for each venv, run from `$work`. The import runs with `python -I` (G9). Version must equal the built wheel version, also for the sdist install.                                                                                        | `python -I`. Called per artifact.                                                                |
-| 6   | Check types    | Only if `check-types`, once, on the first installed artifact (wheel when both): `check_types.sh <package> <module>` run from `$work`. The module default is computed inside the script (G10).                                                             | Contract aligned with the other scripts (G10). Once, not per matrix entry.                       |
+| #   | Phase             | What it does                                                                                                                                                                                                                                              | Changes vs now                                                                                   |
+| --- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 1   | Validate          | All inputs: enums, `pyproject.toml` exists in `project-path`, package, module and version formats. Reports every invalid input, exit 2.                                                                                                                   | Validation of module and tool versions is new (G5). Runs in the tested script.                   |
+| 2   | Build             | `uv build "$PROJECT_PATH" --no-sources --out-dir "$work/dist"`, exactly one wheel and one sdist, version from the wheel metadata, outputs to `$GITHUB_OUTPUT` (skipped when unset, for local runs).                                                       | Unique `$work` directory (G1). Same checks.                                                      |
+| 3   | Check archives    | `check_dist.sh` on the wheel (name, version, extras, `<module>/py.typed`) and on the sdist (name, version, extras). Then the wheel and the sdist must report the same version (G12). Then `uvx twine@<v> check --strict` on both, run from `$work`.       | `py.typed` only on the wheel (G4). Version equality is new. Same failures are reported together. |
+| 4   | Install           | For each selected artifact (`wheel`, `sdist` or both): `uv venv "$work/venv-<type>"`, then `uv pip install` **from `$work`** with the direct reference when extras are set. `UV_*` variables of the caller are respected, the project config is not (G2). | Runs outside the workspace (G2). Loops over `both`.                                              |
+| 5   | `ci/nightly-slim` | Slim `nightly-test-released.yaml` (smoke jobs, pinned release), add `test-latest-tools` to `ci.yaml`'s schedule.                                                                                                                                          | G7, G8                                                                                           |
+| 6   | Check types       | Only if `check-types`, once, on the first installed artifact (wheel when both): `check_types.sh <package> <module>` run from `$work`. The module default is computed inside the script (G10).                                                             | Contract aligned with the other scripts (G10). Once, not per matrix entry.                       |
 
 Decisions that stay: `--no-sources` always on, `twine --strict`, pyright through `uvx` with
 `PYTHONPATH` set to the site-packages of the venv, no tool installed into the environment under
@@ -209,8 +209,8 @@ CI (`ci-action.yaml`) is the integration layer. Changes:
   `test-tool-versions`.
 
 - `test-latest-tools` (new job): `twine-version: latest`, `pyright-version: latest`. Not required on
-  pull requests (it would turn a PR red because of an upstream release); it runs in the nightly
-  schedule only (`if: github.event_name == 'schedule'` in the caller) (G8).
+  pull requests (it would turn a PR red because of an upstream release); it runs on the schedule
+  of `ci.yaml` only (`if: github.event_name == 'schedule'`, the event of the calling workflow) (G8).
 
 ### 3.7 Workflows
 
@@ -219,20 +219,15 @@ Kept as is: `ci.yaml`, `ci-format.yaml`, `ci-verify-workflows.yaml`, `lib-*.yaml
 
 Changes:
 
-- `ci-action.yaml` gets a boolean input `released` (default `false`), the pattern used in
-  `durandtibo/sign-pypi-package-action`. Each job that runs the action has two steps with the same
-  `with:`: `uses: ./` with `if: ${{ !inputs.released }}`, and
-  `uses: durandtibo/verify-uv-build-action@<sha> # ratchet:...@v0.1.0` with
-  `if: ${{ inputs.released }}`. The released step is pinned to a SHA like every other third-party
-  action, so `bot-pin-action.yaml` and the supply-chain rules apply unchanged.
-- Test rows that the released version does not support yet are excluded when `released` is true.
-  Each row of the `test-cases` matrix gets a `released: true` key when the last release supports it,
-  and every step of that job is guarded by `if: ${{ !inputs.released || matrix.released }}`.
-  At release time: flag the rows the new version supports and bump the SHA and the ratchet comment
-  (this is the existing release step of `CLAUDE.md`, one place instead of two files).
-- `nightly-test-released.yaml` is **deleted** (G7). `nightly.yaml` calls `ci-action.yaml` with
-  `released: true`, plus `test-latest-tools`. The duplicated copy of the tests disappears; the SHA
-  bump stays a manual release step.
+- `nightly-test-released.yaml` is **slimmed down**, not deleted (G7, D2). It keeps the jobs that can
+  detect a change outside this repository (new runner image, `uv`, `setup-uv`, Python): `test` (the
+  Python/OS matrix) and `test-extra`, with `uses: durandtibo/verify-uv-build-action@<sha> # ratchet:...`
+  pinned to the last release. It drops the failure cases and the tool-version jobs, which test the
+  logic of a given commit and cannot change without a commit. About 70 lines instead of 187. The
+  header says it mirrors those two jobs of `ci-action.yaml` and that a release bumps the pin.
+- `ci-action.yaml` is unchanged in structure: `uses: ./` only, no `released` plumbing.
+- `test-latest-tools` runs on the schedule of `ci.yaml`, so the **current** code is tested against
+  the latest upstream twine and pyright. That is the signal that a pin bump is due (G8).
 - `make test-shell` (`bats --recursive tests/bats`) in the root `Makefile`, called by
   `ci-shell.yaml` (G13). `.make/` is shared and is not edited.
 - `ci-shell.yaml`: drop the duplicated "Verify bats installation" and "Show the versions" steps
@@ -245,8 +240,8 @@ Changes:
   checks locally" section reduced to `PACKAGE_NAME=mypkg bash scripts/verify.sh`, troubleshooting
   with one row per `❌` message including the new ones, the migration table below.
 - `CONTRIBUTING.md`: repository structure and test sections list `verify.sh` and `make test-shell`.
-- `CLAUDE.md`: purpose paragraph lists `verify.sh`; workflow section describes the `released`
-  input and the shortened nightly. These edits are part of the PR that changes the behaviour.
+- `CLAUDE.md`: purpose paragraph lists `verify.sh`; workflow section describes the shortened
+  nightly. These edits are part of the PR that changes the behaviour.
 
 ## 4. Breaking changes and migration
 
@@ -281,11 +276,48 @@ Changes:
 
 ## 6. Decisions
 
-| #   | Decision                                                                                                                           | Reason                                                                                                                                                       |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| D1  | `dist-type` defaults to `both`.                                                                                                    | Matches P1 (verify what is published). The cost is one extra install. Use `dist-type: wheel` for the old behaviour. Confirmed.                               |
-| D2  | The nightly run reuses `ci-action.yaml` through a `released` input, with two action steps per job (local and pinned released SHA). | Same approach as `sign-pypi-package-action`: no second copy of the tests, SHA-pinned like other actions, row flags say what the release supports. Confirmed. |
-| D3  | One `Verify` step (`verify.sh`) instead of one YAML step per phase.                                                                | Tested logic and a local entry point outweigh per-step status. Confirmed.                                                                                    |
+| #   | Decision                                                                                                                      | Reason                                                                                                                         |
+| --- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| D1  | `dist-type` defaults to `both`.                                                                                               | Matches P1 (verify what is published). The cost is one extra install. Use `dist-type: wheel` for the old behaviour. Confirmed. |
+| D2  | Keep a separate, slim `nightly-test-released.yaml` (smoke jobs only, pinned released SHA), as in `build-pypi-package-action`. | The mirrored surface is small, `ci-action.yaml` stays simple, and the repo already works this way. See the comparison below.   |
+| D3  | One `Verify` step (`verify.sh`) instead of one YAML step per phase.                                                           | Tested logic and a local entry point outweigh per-step status. Confirmed.                                                      |
+
+### D2 comparison
+
+Three ways to test the released action nightly:
+
+- **A. One workflow, a `released` input** (`sign-pypi-package-action`): every job that runs the
+  action has two steps (`uses: ./` and `uses: <pinned sha>`), and the cases are rows of
+  `test/cases.json` with a `released` flag.
+- **B. A mirror workflow** (`build-pypi-package-action`): `nightly-test-released.yaml` is a copy of
+  `ci-action.yaml` that differs by the `uses:` ref; the cases are shared through `cases.json` and a
+  `load-cases.sh released` filter.
+- **B-slim** (recommended): B, but the mirror keeps only the jobs that react to the outside world.
+
+| Criterion                                                       | A: `released` input                                                                                                  | B: full mirror                                                  | B-slim                               |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------ |
+| Duplicated lines                                                | About 6 per job (the second `uses` step and its `with:`), inside one file                                            | The whole file (about 190 lines here), in two files             | About 70 lines                       |
+| Readability of `ci-action.yaml`                                 | Worse: `if: inputs.released` on every action step, outputs read as `steps.local.outputs \|\| steps.released.outputs` | Best: only `uses: ./`                                           | Best: only `uses: ./`                |
+| Drift between current and released tests                        | Cannot drift (one definition)                                                                                        | Real risk, only a header comment and discipline guard it        | Small risk, the surface is two jobs  |
+| Released API differs (breaking change such as v0.0.x to v0.1.0) | Each step has its own `with:`, so it works, with conditional noise                                                   | Natural: the file is a separate copy and can use the old inputs | Natural, same as B                   |
+| Failure cases against the release                               | Possible, needs the `released` row flags and a loader to filter matrices                                             | Possible, same flags and loader                                 | Not run (see below)                  |
+| Added machinery                                                 | `released` input, flags, loader script, guarded steps                                                                | Flags and loader script                                         | None                                 |
+| Release effort                                                  | Bump the SHA in every released step, flip row flags                                                                  | Bump the SHA in the mirror, flip row flags                      | Bump the SHA in the mirror (2 lines) |
+| What the nightly run can detect                                 | Same in all three: a runner image, `uv`, `setup-uv` or Python change that breaks the released action                 | Same                                                            | Same                                 |
+| Fit with the repository                                         | New pattern here                                                                                                     | Already the pattern (file name, `CLAUDE.md` text)               | Already the pattern, smaller         |
+
+Reasoning:
+
+- A nightly run of the released code can only fail for a reason outside the repository. The failure
+  cases (invalid input, missing marker, ...) check the logic of a commit, so they give no nightly
+  signal. Dropping them removes most of what A and B must keep in sync (flags, loader, guards).
+- What remains to mirror is two jobs of about 35 lines. That is cheaper than adding conditions to
+  every job of `ci-action.yaml` (A) and much smaller than a full copy (B).
+- A is the better choice if the nightly run later needs the full case table against the release.
+  Switching then is mechanical: add the `released` input and the flags to `ci-action.yaml` and
+  delete the mirror. This is not needed today.
+- The current-code tests with the latest upstream tools stay in `ci.yaml` (G8): the released action
+  pins its tools, so an upstream release cannot break it.
 
 No open decision remains.
 
@@ -301,7 +333,7 @@ descriptions must say that CI was not awaited.
 | 2   | `refactor/script-contracts` | `lib.sh` validators and annotations, `python -I`, `check_types.sh` contract, `py.typed` wheel only, version helper.                                                                                                                                                              | G4, G5, G9, G10, G11, G12 |
 | 3   | `chore/make-test-shell`     | `make test-shell`, `ci-shell.yaml` cleanup.                                                                                                                                                                                                                                      | G13                       |
 | 4   | `feat/verify-script`        | `verify.sh` and `test_verify.bats`; `action.yaml` reduced to setup, verify, summary; unique work directories; install outside the workspace; `dist-type: both`; README, CONTRIBUTING and `CLAUDE.md` updates; enable the cases of PR 1. The only PR that changes the public API. | G1, G2, G3, G15           |
-| 5   | `ci/nightly-latest`         | `released` input and `released: true` row flags, delete `nightly-test-released.yaml`, nightly calls `ci-action.yaml`, `test-latest-tools`.                                                                                                                                       | G7, G8                    |
+| 5   | `ci/nightly-slim`           | Slim `nightly-test-released.yaml` (smoke jobs, pinned release), add `test-latest-tools` to `ci.yaml`'s schedule.                                                                                                                                                                 | G7, G8                    |
 | 6   | `docs/readme-v0-1-0`        | README details (`checkout@v7`, `fetch-depth: 0`, troubleshooting, `test_readme.bats`), migration table.                                                                                                                                                                          | G14, P13                  |
 | 7   | `chore/release-v0-1-0`      | Tag `v0.1.0` (exact tag, no floating tag). No pin to update anymore.                                                                                                                                                                                                             | P11                       |
 
@@ -314,8 +346,8 @@ The target state is reached when:
   `run:`, and its inputs match the README table (checked by `test_readme.bats`).
 - `PACKAGE_NAME=<pkg> bash scripts/verify.sh` runs the full verification locally.
 - Each of G1 to G12 has a test that fails on the old behaviour (bats or a `ci-action.yaml` case).
-- `nightly-test-released.yaml` no longer exists; a release edits one pinned SHA in
-  `ci-action.yaml` and the `released` row flags.
+- `nightly-test-released.yaml` is at most 80 lines and only holds the smoke jobs; a release edits
+  its pinned SHA (and the `CLAUDE.md` pointer stays accurate).
 - CI proves, end to end, that placeholder version, twine, missing marker, missing extra, missing
   dependency, wrong names and type incompleteness each fail the action, and that stale `dist/`,
   `[tool.uv]` config and `[tool.uv.sources]` do not.
