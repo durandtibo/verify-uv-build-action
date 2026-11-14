@@ -137,7 +137,8 @@ jobs:
 ## Requirements
 
 - A `pyproject.toml` compatible with `uv build`. The build uses `--no-config --no-sources`: it ignores
-  `[tool.uv]`, `uv.toml` and `[tool.uv.sources]`, so the project must build the way a user installing from PyPI gets it.
+  `[tool.uv]`, `uv.toml` and `[tool.uv.sources]`, so the project must build the way a user
+  installing from PyPI gets it.
 - For type checking: a `<module>/py.typed` marker in the package, or `check-types: false`.
 
 ## Troubleshooting
