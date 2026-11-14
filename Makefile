@@ -23,3 +23,8 @@ format: format-yaml format-makefile format-shell format-toml format-markdown ## 
 
 .PHONY: lint
 lint: lint-yaml lint-makefile lint-shell lint-markdown lint-actions ## Lint all files
+
+.PHONY: test-shell
+test-shell: ## Run the bats tests of the shell scripts
+	@bats --version
+	bats --recursive tests/bats
