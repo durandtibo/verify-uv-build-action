@@ -142,3 +142,20 @@ setup() {
 	run log_error "boom"
 	[ "$status" -eq 0 ]
 }
+
+@test "action_default prints the default of an input of action.yaml" {
+	[ "$(action_default dist-type)" = "both" ]
+	[ "$(action_default project-path)" = "." ]
+	[ "$(action_default check-types)" = "true" ]
+}
+
+@test "action_default prints an empty default and nothing for an unknown input" {
+	[ -z "$(action_default module-name)" ]
+	[ -z "$(action_default nope)" ]
+}
+
+@test "tool_pin prints the pinned version of a tool" {
+	[[ "$(tool_pin twine)" =~ ^[0-9][0-9.]*$ ]]
+	[[ "$(tool_pin pyright)" =~ ^[0-9][0-9.]*$ ]]
+	[ -z "$(tool_pin nope)" ]
+}

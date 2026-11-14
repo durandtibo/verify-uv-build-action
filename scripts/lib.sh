@@ -31,6 +31,13 @@
 #   is_version_spec <value>
 #                         - succeed if value is "latest" or a version such as
 #                           "1.2.3", "1.1.414" or "2.0rc1"
+#   action_default <input>
+#                         - print the default of an input, read from
+#                           action.yaml (the only place where defaults are
+#                           written). Prints nothing for an input without
+#                           default
+#   tool_pin <tool>       - print the pinned version of a tool, read from
+#                           requirements.txt (the line "<tool>==<version>")
 #   group_start <title>   - open a collapsed GitHub Actions log group
 #   group_end             - close the log group
 #
@@ -87,6 +94,25 @@ is_dotted_identifier() {
 
 is_version_spec() {
 	[ "${1:-}" = "latest" ] || [[ "${1:-}" =~ ^[0-9][A-Za-z0-9.!+_-]*$ ]]
+}
+
+# The directory of this file, to find action.yaml and requirements.txt.
+LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+action_default() {
+	awk -v input="$1" '
+		/^inputs:/ { in_inputs = 1; next }
+		/^[a-z]/ { in_inputs = 0 }
+		in_inputs && /^  [a-z-]+:[[:space:]]*$/ { name = $1; sub(/:$/, "", name) }
+		in_inputs && name == input && /^    default:/ {
+			value = $0; sub(/^    default:[[:space:]]*/, "", value); gsub(/"/, "", value)
+			print value; exit
+		}
+	' "${LIB_DIR}/../action.yaml"
+}
+
+tool_pin() {
+	sed -n "s/^$1==\([^[:space:]#]*\).*/\1/p" "${LIB_DIR}/requirements.txt" | sed -n 1p
 }
 
 group_start() {
