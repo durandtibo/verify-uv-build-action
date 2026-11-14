@@ -91,8 +91,10 @@ runs:
         python-version: ${{ inputs.python-version }}
 
     # Step 2: validate, build, check the archives, install, check the
-    # installation and the types. See scripts/verify.sh for the phases. The
-    # same script runs locally: PACKAGE_NAME=<name> bash scripts/verify.sh
+    # installation and the types, and write the job summary (verdict, failed
+    # phase, reason, content of the archives), also when a check failed. See
+    # scripts/verify.sh for the phases. The same script runs locally:
+    # PACKAGE_NAME=<name> bash scripts/verify.sh
     - name: Verify
       id: verify
       shell: bash
@@ -108,29 +110,4 @@ runs:
         CHECK_TYPES: ${{ inputs.check-types }}
       run: |
         set -euo pipefail
-        bash "$GITHUB_ACTION_PATH/scripts/verify.sh" || { echo "❌ Verification failed (see errors above)" >&2; exit 1; }
-
-    # Content of the archives in the job summary, even when a check failed
-    - name: Show artifacts
-      if: always()
-      shell: bash
-      env:
-        WHEEL_PATH: ${{ steps.verify.outputs.wheel-path }}
-        SDIST_PATH: ${{ steps.verify.outputs.sdist-path }}
-      run: |
-        set -uo pipefail
-        summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
-        for f in "$WHEEL_PATH" "$SDIST_PATH"; do
-          [ -n "$f" ] || continue
-          {
-            echo "<details><summary>Content of ${f##*/}</summary>"
-            echo
-            echo '```text'
-            case "$f" in
-              *.whl) unzip -Z1 "$f" ;;
-              *) tar -tzf "$f" ;;
-            esac
-            echo '```'
-            echo "</details>"
-          } >> "$summary"
-        done
+        bash "$GITHUB_ACTION_PATH/scripts/verify.sh"
