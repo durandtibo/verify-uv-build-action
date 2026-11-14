@@ -10,7 +10,8 @@ setup() {
 	WORK="$(mktemp -d)"
 	WORK="$(cd "${WORK}" && pwd -P)"
 	mkdir -p "${WORK}/bin" "${WORK}/runner" "${WORK}/proj" "${WORK}/scripts"
-	cp scripts/lib.sh scripts/check_dist.sh scripts/verify.sh "${WORK}/scripts/"
+	cp scripts/lib.sh scripts/check_dist.sh scripts/verify.sh scripts/requirements.txt "${WORK}/scripts/"
+	cp action.yaml "${WORK}/"
 	touch "${WORK}/proj/pyproject.toml"
 
 	for name in check_install check_types; do
@@ -377,4 +378,28 @@ count() {
 	[ "$status" -eq 1 ]
 	grep -Fq "wheel-path=" "${WORK}/out"
 	grep -Fq "version=1.0" "${WORK}/out"
+}
+
+@test "empty tool versions use the pins of requirements.txt" {
+	TWINE_VERSION="" PYRIGHT_VERSION="" run bash "${VERIFY}"
+	[ "$status" -eq 0 ]
+	grep -Fq "twine@$(sed -n 's/^twine==//p' scripts/requirements.txt) check" "${CALLS}/uvx"
+	grep -Fq "venv-wheel myproject  $(sed -n 's/^pyright==//p' scripts/requirements.txt)" "${CALLS}/check_types"
+}
+
+@test "a tool version input overrides the pin" {
+	TWINE_VERSION=latest run bash "${VERIFY}"
+	grep -Fq "twine@latest check" "${CALLS}/uvx"
+}
+
+@test "verify.sh holds no default of an input (single source: action.yaml)" {
+	! grep -Eq '\$\{(PROJECT_PATH|DIST_TYPE|CHECK_TYPES|TWINE_VERSION|PYRIGHT_VERSION):-[^$}]' scripts/verify.sh
+}
+
+@test "the defaults come from action.yaml" {
+	sed -i.bak 's/default: "both"/default: "wheel"/' "${WORK}/action.yaml"
+	unset DIST_TYPE
+	run bash "${VERIFY}"
+	[ "$(count uv_install)" -eq 1 ]
+	grep -Fq "venv-wheel" "${CALLS}/uv_install"
 }

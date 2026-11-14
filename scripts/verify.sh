@@ -33,10 +33,12 @@
 #   PACKAGE_EXTRA         Comma-separated extras to install and verify
 #   PACKAGE_DEPENDENCIES  Comma-separated direct dependencies that must be
 #                         installed
-#   DIST_TYPE             wheel, sdist or both. Default: both
-#   PROJECT_PATH          Directory with the pyproject.toml. Default: .
-#   TWINE_VERSION         "latest" or a version. Default: 7.0.0
-#   PYRIGHT_VERSION       "latest" or a version. Default: 1.1.414
+#   DIST_TYPE             wheel, sdist or both. Default: see action.yaml
+#   PROJECT_PATH          Directory with the pyproject.toml. Default: see action.yaml
+#   TWINE_VERSION         "latest" or a version. Default: the pin of
+#                         scripts/requirements.txt
+#   PYRIGHT_VERSION       Same
+
 #   CHECK_TYPES           true or false. Default: true
 #   RUNNER_TEMP           Parent of the work directory. Default: TMPDIR or /tmp
 #   GITHUB_OUTPUT         When set, wheel-path, sdist-path and version are
@@ -68,13 +70,14 @@ source "${SCRIPT_DIR}/check_install.sh"
 # shellcheck source=scripts/check_types.sh
 source "${SCRIPT_DIR}/check_types.sh"
 
-# Fill the optional inputs that are unset or empty with their default.
+# Fill the optional inputs that are unset or empty with their default: the
+# default of action.yaml, or for the tools the pin of requirements.txt.
 apply_defaults() {
-	PROJECT_PATH="${PROJECT_PATH:-.}"
-	DIST_TYPE="${DIST_TYPE:-both}"
-	CHECK_TYPES="${CHECK_TYPES:-true}"
-	TWINE_VERSION="${TWINE_VERSION:-7.0.0}"
-	PYRIGHT_VERSION="${PYRIGHT_VERSION:-1.1.414}"
+	PROJECT_PATH="${PROJECT_PATH:-$(action_default project-path)}"
+	DIST_TYPE="${DIST_TYPE:-$(action_default dist-type)}"
+	CHECK_TYPES="${CHECK_TYPES:-$(action_default check-types)}"
+	TWINE_VERSION="${TWINE_VERSION:-$(tool_pin twine)}"
+	PYRIGHT_VERSION="${PYRIGHT_VERSION:-$(tool_pin pyright)}"
 	MODULE_NAME="${MODULE_NAME:-}"
 	PACKAGE_EXTRA="${PACKAGE_EXTRA:-}"
 	PACKAGE_DEPENDENCIES="${PACKAGE_DEPENDENCIES:-}"
