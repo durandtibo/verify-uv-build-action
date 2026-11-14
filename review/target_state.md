@@ -59,7 +59,7 @@ untested or misleading, **L** = maintenance cost or polish.
 | G4  | M   | The `py.typed` check on the sdist uses `^[^/]+/(.+/)?<module>/py.typed$`, so `tests/<module>/py.typed` passes. It is also redundant: `uv build` builds the wheel **from the sdist**, so a wheel that contains `<module>/py.typed` proves that the sdist ships it. One strict check on the wheel replaces two.                                                                                                              | `check_dist.sh` `has_py_typed`                |
 | G5  | M   | `module-name` is not validated and is used as a regular expression in `check_dist.sh` (`a+b`, `a(b` break or mis-match). The tool-version inputs are not validated either: any string reaches `uvx "twine@..."` (violates P7).                                                                                                                                                                                             | `action.yaml`, `check_dist.sh`                |
 | G6  | M   | The headline checks are only proven by mocked unit tests. `ci-action.yaml` has no case where twine fails, where the version is `0.0.0`, where pyright reports incompleteness, or that proves `--no-sources` ignores `[tool.uv.sources]` (violates P12).                                                                                                                                                                    | `ci-action.yaml`                              |
-| G7  | M   | `nightly-test-released.yaml` (187 lines) is a hand-copied, older version of `ci-action.yaml`: four copy-pasted failure jobs, the removed `verify-*-extra` inputs, pinned to `v0.0.7`. The failure cases do not depend on upstream changes, so running them nightly adds cost and no signal; the file should only keep the jobs that can detect a change in the world (P6, P13).                                            | `nightly-test-released.yaml`                  |
+| G7  | M   | `nightly-test-released.yaml` (187 lines) is a hand-written, older copy of `ci-action.yaml`: four copy-pasted failure jobs, the removed `verify-*-extra` inputs, pinned to `v0.0.7`, and the failure cases live twice with no shared table. Nothing checks that the two files stay aligned (violates P6, P13).                                                                                                              | `nightly-test-released.yaml`                  |
 | G8  | M   | Tool pins (`twine` 7.0.0, `pyright` 1.1.414) appear in `action.yaml`, the README and the CI overrides, with no signal that a newer tool breaks the action. Nothing runs the latest upstream tools (violates P12, P13).                                                                                                                                                                                                     | `action.yaml`, `README.md`                    |
 | G9  | L   | Isolation depends on `working-directory`. `check_install.sh` run from the checkout (as the README local instructions allow) silently loses the protection against importing the source tree. `python -I` makes it independent of the cwd.                                                                                                                                                                                  | `check_install.sh` `import_location`          |
 | G10 | L   | Inconsistent script contracts: `check_dist.sh` and `check_install.sh` take `<package> [module]` and default the module themselves; `check_types.sh` only takes a module, so the YAML step sources `lib.sh` to compute it. `INPUT_MODULE_NAME` is passed in three steps.                                                                                                                                                    | `action.yaml` "Check types", `check_types.sh` |
@@ -83,6 +83,8 @@ scripts/check_dist.sh           one archive: name, version, extras, py.typed (wh
 scripts/check_install.sh        one installed package: name, version, dependencies, import
 scripts/check_types.sh          pyright --verifytypes
 scripts/lib.sh                  logging, annotations, name normalization, csv, input validation
+scripts/load-cases.sh           CI only: builds the case matrices from tests/cases.json
+tests/cases.json                the table of end-to-end cases, shared by both workflows
 ```
 
 `verify.sh` is a sourceable script made of small functions (`validate_inputs`, `build_dists`,
@@ -166,6 +168,7 @@ sync, exit `0` ok / `1` check failed / `2` bad usage, shellcheck and shfmt clean
 | `check_dist.sh`    | `py.typed` pattern becomes `^<module path>/py\.typed$` for the wheel only. The sdist is not checked for it (G4). Takes an explicit `check_types` only for the wheel; the sdist call passes `false`. New function `read_version <archive>` reused by `verify.sh` to compare versions (G12). |
 | `check_install.sh` | `python -I -c` for the import (G9). Nothing else changes.                                                                                                                                                                                                                                  |
 | `check_types.sh`   | Arguments become `<package_name> [module_name]` like the others (G10). Module default computed in `lib.sh`. `PYRIGHT_VERSION` and `VIRTUAL_ENV` stay environment inputs.                                                                                                                   |
+| `load-cases.sh`    | New, CI only, about 30 lines. `load-cases.sh all\|released` prints the case matrix of `tests/cases.json` as JSON for `fromJson` (`released`: only rows with `"released": true`). Uses `jq`.                                                                                                |
 | `verify.sh`        | New, about 150 lines (G3). Functions listed in 3.1, main guarded by `BASH_SOURCE`.                                                                                                                                                                                                         |
 
 Expected size: scripts about 560 lines (from 480), `action.yaml` about 120 lines (from 274), of
@@ -186,6 +189,13 @@ Bats stays the unit layer, with no network:
 - `test_check_install.bats`: a `python` mock proves `-I` is passed (G9).
 - `test_check_types.bats`: new argument contract (G10).
 - `test_lib.bats`: `log_error` annotation only under `GITHUB_ACTIONS` (G11), validators (G5).
+- `test_load_cases.bats` (new): `all` returns every row, `released` only the flagged ones, an
+  unknown mode exits 2, every row has the required keys.
+- `test_workflow_mirror.bats` (new): `nightly-test-released.yaml` equals `ci-action.yaml` once the
+  header, the workflow name, the `uses:` ref of the action, the artifact names and the loader mode
+  are normalized. A short allow-list in the test names the jobs that exist only in `ci-action.yaml`
+  because they test a feature the last release does not have yet. This replaces the header comment
+  as the guard against drift.
 - `test_readme.bats` (new, small): every input of `action.yaml` is in the README inputs table with
   the same default (P13). Plain `grep`, no new tool.
 
@@ -193,7 +203,10 @@ CI (`ci-action.yaml`) is the integration layer. Changes:
 
 - `test`, `test-extra`, `test-tool-versions`: unchanged, except `test-extra` loses the `dist-type`
   matrix dimension because `both` is the default (smaller matrix, same coverage).
-- `test-cases` gets the missing headline cases (G6), each with a `setup` snippet on the fixture:
+- The failure and edge cases move from the YAML matrix to rows of `tests/cases.json`
+  (`name`, `expect`, the action inputs, an optional `setup` shell snippet, `released`). A `cases` job
+  runs `scripts/load-cases.sh all` and feeds `test-cases` through `fromJson`. `test-cases` gets the
+  missing headline cases (G6) as new rows:
 
   | Case                             | Expect  | Setup                                                                       |
   | -------------------------------- | ------- | --------------------------------------------------------------------------- |
@@ -206,7 +219,8 @@ CI (`ci-action.yaml`) is the integration layer. Changes:
   | `dist-type: sdist` with an extra | success | existing                                                                    |
 
   The last two cases need more than a setup line; they get their own small jobs next to
-  `test-tool-versions`.
+  `test-tool-versions`. A row carries `"released": true` when the last release supports it; at
+  release time the flags of the new features are flipped.
 
 - `test-latest-tools` (new job): `twine-version: latest`, `pyright-version: latest`. Not required on
   pull requests (it would turn a PR red because of an upstream release); it runs on the schedule
@@ -219,15 +233,19 @@ Kept as is: `ci.yaml`, `ci-format.yaml`, `ci-verify-workflows.yaml`, `lib-*.yaml
 
 Changes:
 
-- `nightly-test-released.yaml` is **slimmed down**, not deleted (G7, D2). It keeps the jobs that can
-  detect a change outside this repository (new runner image, `uv`, `setup-uv`, Python): `test` (the
-  Python/OS matrix) and `test-extra`, with `uses: durandtibo/verify-uv-build-action@<sha> # ratchet:...`
-  pinned to the last release. It drops the failure cases and the tool-version jobs, which test the
-  logic of a given commit and cannot change without a commit. About 70 lines instead of 187. The
-  header says it mirrors those two jobs of `ci-action.yaml` and that a release bumps the pin.
-- `ci-action.yaml` is unchanged in structure: `uses: ./` only, no `released` plumbing.
-- `test-latest-tools` runs on the schedule of `ci.yaml`, so the **current** code is tested against
-  the latest upstream twine and pyright. That is the signal that a pin bump is due (G8).
+- `nightly-test-released.yaml` stays a **mirror** of `ci-action.yaml` (D2), as in
+  `build-pypi-package-action`. Same jobs, same assertions, same structure. It differs only by the
+  `uses: durandtibo/verify-uv-build-action@<sha> # ratchet:...` ref of the last release instead of
+  `uses: ./`, the artifact names, and `load-cases.sh released` instead of `all`, so only the rows
+  flagged `"released": true` run. It has `workflow_call` and `workflow_dispatch` (`CLAUDE.md`).
+- The mirror is the old file rewritten from the new `ci-action.yaml`: the four copy-pasted failure
+  jobs go, the table is shared, the file shrinks to the same size as `ci-action.yaml`. The two files
+  are kept aligned by `test_workflow_mirror.bats` (3.6), not by a comment.
+- `test-latest-tools` runs on the schedule of `ci.yaml` only, so the **current** code is tested
+  against the latest upstream twine and pyright. It is on the allow-list of the mirror test. That
+  is the signal that a pin bump is due (G8).
+- A release edits the pinned SHA and the ratchet comment of the mirror, flips the `released` flags
+  of the new features, and shrinks the allow-list of the mirror test.
 - `make test-shell` (`bats --recursive tests/bats`) in the root `Makefile`, called by
   `ci-shell.yaml` (G13). `.make/` is shared and is not edited.
 - `ci-shell.yaml`: drop the duplicated "Verify bats installation" and "Show the versions" steps
@@ -240,8 +258,8 @@ Changes:
   checks locally" section reduced to `PACKAGE_NAME=mypkg bash scripts/verify.sh`, troubleshooting
   with one row per `❌` message including the new ones, the migration table below.
 - `CONTRIBUTING.md`: repository structure and test sections list `verify.sh` and `make test-shell`.
-- `CLAUDE.md`: purpose paragraph lists `verify.sh`; workflow section describes the shortened
-  nightly. These edits are part of the PR that changes the behaviour.
+- `CLAUDE.md`: purpose paragraph lists `verify.sh`; workflow section describes `tests/cases.json`
+  and the mirror workflow. These edits are part of the PR that changes the behaviour.
 
 ## 4. Breaking changes and migration
 
@@ -276,48 +294,37 @@ Changes:
 
 ## 6. Decisions
 
-| #   | Decision                                                                                                                      | Reason                                                                                                                         |
-| --- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| D1  | `dist-type` defaults to `both`.                                                                                               | Matches P1 (verify what is published). The cost is one extra install. Use `dist-type: wheel` for the old behaviour. Confirmed. |
-| D2  | Keep a separate, slim `nightly-test-released.yaml` (smoke jobs only, pinned released SHA), as in `build-pypi-package-action`. | The mirrored surface is small, `ci-action.yaml` stays simple, and the repo already works this way. See the comparison below.   |
-| D3  | One `Verify` step (`verify.sh`) instead of one YAML step per phase.                                                           | Tested logic and a local entry point outweigh per-step status. Confirmed.                                                      |
+| #   | Decision                                                                                                                                                                                                                                 | Reason                                                                                                                                                    |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | `dist-type` defaults to `both`.                                                                                                                                                                                                          | Matches P1 (verify what is published). The cost is one extra install. Use `dist-type: wheel` for the old behaviour. Confirmed.                            |
+| D2  | `nightly-test-released.yaml` stays a mirror of `ci-action.yaml` with the same jobs, the pinned released SHA and the `released` rows of a shared `tests/cases.json`, as in `build-pypi-package-action`. A bats test guards the alignment. | The released API may differ from the current one, `ci-action.yaml` stays simple, and the repo already works this way. See the rationale below. Confirmed. |
+| D3  | One `Verify` step (`verify.sh`) instead of one YAML step per phase.                                                                                                                                                                      | Tested logic and a local entry point outweigh per-step status. Confirmed.                                                                                 |
 
-### D2 comparison
+### D2 rationale
 
-Three ways to test the released action nightly:
+Options considered: **A** one workflow with a `released` input and two action steps per job
+(`sign-pypi-package-action`), **B** a mirror workflow (`build-pypi-package-action`), **B-slim** a
+mirror reduced to smoke jobs.
 
-- **A. One workflow, a `released` input** (`sign-pypi-package-action`): every job that runs the
-  action has two steps (`uses: ./` and `uses: <pinned sha>`), and the cases are rows of
-  `test/cases.json` with a `released` flag.
-- **B. A mirror workflow** (`build-pypi-package-action`): `nightly-test-released.yaml` is a copy of
-  `ci-action.yaml` that differs by the `uses:` ref; the cases are shared through `cases.json` and a
-  `load-cases.sh released` filter.
-- **B-slim** (recommended): B, but the mirror keeps only the jobs that react to the outside world.
+| Criterion                       | A: `released` input                               | B: mirror (chosen)                              | B-slim         |
+| ------------------------------- | ------------------------------------------------- | ----------------------------------------------- | -------------- |
+| Duplicated lines                | About 6 per job, one file                         | The whole file, two files                       | About 70 lines |
+| Readability of `ci-action.yaml` | Worse: `if: inputs.released` on every action step | Best: only `uses: ./`                           | Best           |
+| Drift between the two           | Cannot drift                                      | Guarded by `test_workflow_mirror.bats`          | Small surface  |
+| Released API differs            | Works, with conditional noise                     | Natural: a separate file can use the old inputs | Natural        |
+| Failure cases against release   | Needs `released` flags and a loader               | Same flags and loader, shared table             | Not run        |
+| Release effort                  | Bump the SHA in every released step, flip flags   | Bump one SHA, flip flags, shrink the allow-list | Bump one SHA   |
 
-| Criterion                                                       | A: `released` input                                                                                                  | B: full mirror                                                  | B-slim                               |
-| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------ |
-| Duplicated lines                                                | About 6 per job (the second `uses` step and its `with:`), inside one file                                            | The whole file (about 190 lines here), in two files             | About 70 lines                       |
-| Readability of `ci-action.yaml`                                 | Worse: `if: inputs.released` on every action step, outputs read as `steps.local.outputs \|\| steps.released.outputs` | Best: only `uses: ./`                                           | Best: only `uses: ./`                |
-| Drift between current and released tests                        | Cannot drift (one definition)                                                                                        | Real risk, only a header comment and discipline guard it        | Small risk, the surface is two jobs  |
-| Released API differs (breaking change such as v0.0.x to v0.1.0) | Each step has its own `with:`, so it works, with conditional noise                                                   | Natural: the file is a separate copy and can use the old inputs | Natural, same as B                   |
-| Failure cases against the release                               | Possible, needs the `released` row flags and a loader to filter matrices                                             | Possible, same flags and loader                                 | Not run (see below)                  |
-| Added machinery                                                 | `released` input, flags, loader script, guarded steps                                                                | Flags and loader script                                         | None                                 |
-| Release effort                                                  | Bump the SHA in every released step, flip row flags                                                                  | Bump the SHA in the mirror, flip row flags                      | Bump the SHA in the mirror (2 lines) |
-| What the nightly run can detect                                 | Same in all three: a runner image, `uv`, `setup-uv` or Python change that breaks the released action                 | Same                                                            | Same                                 |
-| Fit with the repository                                         | New pattern here                                                                                                     | Already the pattern (file name, `CLAUDE.md` text)               | Already the pattern, smaller         |
+Why B:
 
-Reasoning:
-
-- A nightly run of the released code can only fail for a reason outside the repository. The failure
-  cases (invalid input, missing marker, ...) check the logic of a commit, so they give no nightly
-  signal. Dropping them removes most of what A and B must keep in sync (flags, loader, guards).
-- What remains to mirror is two jobs of about 35 lines. That is cheaper than adding conditions to
-  every job of `ci-action.yaml` (A) and much smaller than a full copy (B).
-- A is the better choice if the nightly run later needs the full case table against the release.
-  Switching then is mechanical: add the `released` input and the flags to `ci-action.yaml` and
-  delete the mirror. This is not needed today.
-- The current-code tests with the latest upstream tools stay in `ci.yaml` (G8): the released action
-  pins its tools, so an upstream release cannot break it.
+- The nightly run then tests what consumers pick up with the same assertions as CI, including the
+  failure cases of the features the release already has. B-slim gives that up.
+- The release is a separate copy, so a breaking change of the inputs does not need conditions in
+  `ci-action.yaml` (A).
+- The usual weakness of B, silent drift of the copy, is removed by the mirror test, and the case
+  table is shared through `tests/cases.json` so a new case is one row.
+- Cost accepted: about 190 duplicated lines, and a shared `tests/cases.json` plus
+  `scripts/load-cases.sh` (about 30 lines) to maintain.
 
 No open decision remains.
 
@@ -327,15 +334,15 @@ One branch and PR per row (`CLAUDE.md` workflow). Each PR keeps `make format`, `
 `bats tests/bats/` green. The action itself and the workflows cannot run locally: the PR
 descriptions must say that CI was not awaited.
 
-| PR  | Branch                      | Content                                                                                                                                                                                                                                                                          | Fixes                     |
-| --- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| 1   | `test/headline-cases`       | New cases in `ci-action.yaml` (placeholder version, twine, pyright, `--no-sources`, uv config). Some fail today: G2 is expected to fail until PR 4. Land them skipped with a comment, enable in PR 4.                                                                            | G6                        |
-| 2   | `refactor/script-contracts` | `lib.sh` validators and annotations, `python -I`, `check_types.sh` contract, `py.typed` wheel only, version helper.                                                                                                                                                              | G4, G5, G9, G10, G11, G12 |
-| 3   | `chore/make-test-shell`     | `make test-shell`, `ci-shell.yaml` cleanup.                                                                                                                                                                                                                                      | G13                       |
-| 4   | `feat/verify-script`        | `verify.sh` and `test_verify.bats`; `action.yaml` reduced to setup, verify, summary; unique work directories; install outside the workspace; `dist-type: both`; README, CONTRIBUTING and `CLAUDE.md` updates; enable the cases of PR 1. The only PR that changes the public API. | G1, G2, G3, G15           |
-| 5   | `ci/nightly-slim`           | Slim `nightly-test-released.yaml` (smoke jobs, pinned release), add `test-latest-tools` to `ci.yaml`'s schedule.                                                                                                                                                                 | G7, G8                    |
-| 6   | `docs/readme-v0-1-0`        | README details (`checkout@v7`, `fetch-depth: 0`, troubleshooting, `test_readme.bats`), migration table.                                                                                                                                                                          | G14, P13                  |
-| 7   | `chore/release-v0-1-0`      | Tag `v0.1.0` (exact tag, no floating tag). No pin to update anymore.                                                                                                                                                                                                             | P11                       |
+| PR  | Branch                      | Content                                                                                                                                                                                                                                                                                                        | Fixes                     |
+| --- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| 1   | `test/cases-table`          | Move the failure cases of `ci-action.yaml` to `tests/cases.json` with `scripts/load-cases.sh` and `test_load_cases.bats`, add the headline cases (placeholder version, twine, pyright, `--no-sources`, uv config). G2 is expected to fail until PR 4: land that row skipped with a comment, enable it in PR 4. | G6                        |
+| 2   | `refactor/script-contracts` | `lib.sh` validators and annotations, `python -I`, `check_types.sh` contract, `py.typed` wheel only, version helper.                                                                                                                                                                                            | G4, G5, G9, G10, G11, G12 |
+| 3   | `chore/make-test-shell`     | `make test-shell`, `ci-shell.yaml` cleanup.                                                                                                                                                                                                                                                                    | G13                       |
+| 4   | `feat/verify-script`        | `verify.sh` and `test_verify.bats`; `action.yaml` reduced to setup, verify, summary; unique work directories; install outside the workspace; `dist-type: both`; README, CONTRIBUTING and `CLAUDE.md` updates; enable the cases of PR 1. The only PR that changes the public API.                               | G1, G2, G3, G15           |
+| 5   | `ci/nightly-mirror`         | Rewrite `nightly-test-released.yaml` as a mirror of the new `ci-action.yaml` with `load-cases.sh released`, add `test_workflow_mirror.bats`, add `test-latest-tools` to the schedule of `ci.yaml`.                                                                                                             | G7, G8                    |
+| 6   | `docs/readme-v0-1-0`        | README details (`checkout@v7`, `fetch-depth: 0`, troubleshooting, `test_readme.bats`), migration table.                                                                                                                                                                                                        | G14, P13                  |
+| 7   | `chore/release-v0-1-0`      | Tag `v0.1.0` (exact tag, no floating tag). Then bump the pin of the mirror, flip the `released` flags, shrink the allow-list.                                                                                                                                                                                  | P11                       |
 
 ## 8. Acceptance criteria
 
@@ -346,8 +353,9 @@ The target state is reached when:
   `run:`, and its inputs match the README table (checked by `test_readme.bats`).
 - `PACKAGE_NAME=<pkg> bash scripts/verify.sh` runs the full verification locally.
 - Each of G1 to G12 has a test that fails on the old behaviour (bats or a `ci-action.yaml` case).
-- `nightly-test-released.yaml` is at most 80 lines and only holds the smoke jobs; a release edits
-  its pinned SHA (and the `CLAUDE.md` pointer stays accurate).
+- `nightly-test-released.yaml` mirrors `ci-action.yaml` (checked by `test_workflow_mirror.bats`),
+  and both read the same `tests/cases.json`; a release edits one pinned SHA and the `released`
+  flags.
 - CI proves, end to end, that placeholder version, twine, missing marker, missing extra, missing
   dependency, wrong names and type incompleteness each fail the action, and that stale `dist/`,
   `[tool.uv]` config and `[tool.uv.sources]` do not.
