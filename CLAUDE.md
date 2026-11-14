@@ -76,8 +76,14 @@ Files are prefixed by role:
   - `ci-action.yaml`: runs the action from this checkout (`uses: ./`), i.e. the version not
     released yet, across the Python/OS matrix with every package extra, and runs the failure and
     edge cases of `tests/cases.json` (one row per case: inputs, optional `setup` snippet, expected
-    outcome); the table is loaded with `jq` into a matrix. Add a case as a new row. The
-    `test-latest-tools` job (latest twine and pyright) only runs on the schedule of `ci.yaml`.
+    outcome). `scripts/load-cases.sh` turns the table into a matrix. Add a case as a new row.
+- `nightly.yaml`: nightly entry point (schedule and manual runs) that calls
+  `nightly-test-released.yaml`, a mirror of `ci-action.yaml` that runs the cases flagged
+  `"released": true` in `tests/cases.json` against the latest released action.
+  `tests/bats/test_workflow_mirror.bats` fails when the two drift: change `ci-action.yaml` first,
+  then mirror it. On a release, bump the pinned SHA, flip the `released` flags and shrink the
+  allow-list of that test. The `test-latest-tools` job of `ci-action.yaml` (latest twine and
+  pyright) only runs on the schedule of `ci.yaml`.
 - `ci-verify-workflows.yaml`: lints the workflow files themselves. It has its own triggers and is not
   called from `ci.yaml`, so it can be a required check.
 - `lib-get-test-matrix.yaml`, `lib-get-package-extras.yaml`: reusable workflows that load the shared
@@ -90,7 +96,7 @@ Conventions:
 
 - Set `permissions` on every job (including jobs that call a reusable workflow). Every workflow
   has `permissions: {}` at the workflow level (it grants nothing), never a grant.
-- Each `ci-*` check is a `workflow_call` workflow that also has
+- Each `ci-*` and `nightly-test-*` check is a `workflow_call` workflow that also has
   `workflow_dispatch`, so it can be run alone.
   Add a new check as a new `ci-<name>.yaml` plus a job in `ci.yaml`.
 - Put `make` targets in the steps rather than duplicating commands, so local runs and CI match.
