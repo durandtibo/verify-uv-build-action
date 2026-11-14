@@ -18,6 +18,9 @@
 #                           "-", "_" and "." become a single "-")
 #   split_csv <list>      - print one normalized item per line, trimming
 #                           spaces and dropping empty items
+#   default_module_name <package-name>
+#                         - import name derived from a distribution name:
+#                           "-" and "." replaced by "_"
 #   group_start <title>   - open a collapsed GitHub Actions log group
 #   group_end             - close the log group
 #
@@ -54,6 +57,12 @@ split_csv() {
 			echo
 		fi
 	done
+}
+
+default_module_name() {
+	local name="$1"
+	name="${name//-/_}"
+	echo "${name//./_}"
 }
 
 group_start() {

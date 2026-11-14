@@ -183,31 +183,21 @@ runs:
           echo "⚠️  Twine not available, skipping validation"
         fi
 
-    # Verify package metadata
-    - name: Check package metadata
+    # Verify the installed package. Runs outside the checkout so that the
+    # source tree cannot be imported instead of the installed package.
+    - name: Check installed package
       shell: bash
+      working-directory: ${{ runner.temp }}
       env:
         PACKAGE_NAME: ${{ inputs.package-name }}
+        INPUT_MODULE_NAME: ${{ inputs.module-name }}
         PACKAGE_DEPENDENCIES: ${{ inputs.package-dependencies }}
       run: |
         set -euo pipefail
-        echo "🔍 Checking package metadata..."
-        bash "$GITHUB_ACTION_PATH/scripts/check_metadata.sh" \
-          "$PACKAGE_NAME" "$PACKAGE_DEPENDENCIES"
-        echo "✅ Metadata checks passed"
-
-    # Verify dependency tree
-    - name: Check dependency tree
-      shell: bash
-      env:
-        PACKAGE_NAME: ${{ inputs.package-name }}
-        PACKAGE_DEPENDENCIES: ${{ inputs.package-dependencies }}
-      run: |
-        set -euo pipefail
-        echo "🔍 Checking dependency tree..."
-        bash "$GITHUB_ACTION_PATH/scripts/check_dependency_tree.sh" \
-          "$PACKAGE_NAME" "$PACKAGE_DEPENDENCIES"
-        echo "✅ Dependency tree checks passed"
+        echo "🔍 Checking installed package..."
+        bash "$GITHUB_ACTION_PATH/scripts/check_install.sh" \
+          "$PACKAGE_NAME" "$INPUT_MODULE_NAME" "$PACKAGE_DEPENDENCIES"
+        echo "✅ Installed package checks passed"
 
     # Determine module name from package name
     - name: Find module name

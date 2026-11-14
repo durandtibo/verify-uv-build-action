@@ -198,7 +198,7 @@ Example:
 #!/usr/bin/env bash
 
 # Description: Validate package metadata
-# Usage: ./check_metadata.sh
+# Usage: ./check_install.sh
 # Requirements: uv must be installed
 
 set -euo pipefail
