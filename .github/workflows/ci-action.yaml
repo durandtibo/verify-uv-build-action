@@ -74,74 +74,34 @@ jobs:
   #     Tests of failures and cases     #
   #####################################
 
-  # Each entry optionally breaks the fixture with `setup`, runs the action with
+  # Load the failure and edge cases from tests/cases.json.
+  cases:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      cases: ${{ steps.load.outputs.cases }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+
+      - name: Load the cases
+        id: load
+        run: echo "cases=$(scripts/load-cases.sh all)" >> "$GITHUB_OUTPUT"
+
+  # Each case optionally breaks the fixture with `setup`, runs the action with
   # the given inputs, and asserts that the outcome is `expect`.
   test-cases:
     permissions:
       contents: read
+    needs: cases
     runs-on: ubuntu-latest
     timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: invalid dist-type
-            expect: failure
-            dist-type: tar
-          - name: invalid check-types
-            expect: failure
-            check-types: "maybe"
-          - name: missing project-path
-            expect: failure
-            project-path: does/not/exist
-          - name: invalid package-name
-            expect: failure
-            package-name: "my project"
-          - name: missing py.typed
-            expect: failure
-            setup: rm src/myproject/py.typed
-          - name: unknown extra
-            expect: failure
-            package-extra: missing
-          - name: missing dependency
-            expect: failure
-            package-dependencies: not-a-dependency
-          - name: wrong package-name
-            expect: failure
-            package-name: other-project
-          - name: wrong module-name
-            expect: failure
-            module-name: other_module
-          # Regression F1: a copy of the module in the checkout must not hide a
-          # wheel that does not contain it.
-          - name: flat layout imports from source
-            expect: failure
-            check-types: "false"
-            setup: |
-              cp -r src/myproject myproject
-              printf '\n[tool.hatch.build.targets.wheel]\nonly-include = ["README.md"]\n' >> pyproject.toml
-          # Regression F2: a stale dist/ in the checkout must be ignored.
-          - name: stale dist directory
-            expect: success
-            setup: |
-              mkdir dist
-              echo "not a wheel" > dist/myproject-0.0.0-py3-none-any.whl
-              echo "not an sdist" > dist/myproject-0.0.0.tar.gz
-          - name: extra and sdist
-            expect: success
-            dist-type: sdist
-            package-extra: all
-          - name: check-types false without py.typed
-            expect: success
-            check-types: "false"
-            setup: rm src/myproject/py.typed
-          - name: project-path
-            expect: success
-            project-path: sub/dir
-            setup: |
-              mkdir -p sub/dir
-              cp -r pyproject.toml README.md LICENSE src sub/dir
-              rm -rf pyproject.toml src
+        include: ${{ fromJson(needs.cases.outputs.cases) }}
 
     name: ${{ matrix.name }}
     steps:
