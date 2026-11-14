@@ -15,39 +15,24 @@
 #       ships it
 #   All failures are reported before the script exits.
 #
-# Usage:
-#   ./check_dist.sh <archive> <package_name> [module_name] [extras] [check_types]
+# Library sourced by verify.sh, not a command. Its functions trust their
+# caller: the inputs are validated once, in verify.sh.
 #
-# Arguments:
-#   archive       Path to a .whl or .tar.gz file (required)
-#   package_name  Distribution name (required)
-#   module_name   Import name. Default: package_name with "-" and "." replaced
-#                 by "_". A dot means a sub-package (a.b -> a/b/py.typed)
-#   extras        Comma-separated extras that must be defined. Default: none
-#   check_types   "true" (default) or "false". Whether py.typed is required
-#                 in a wheel (ignored for an sdist)
-#
-# Examples:
-#   ./check_dist.sh dist/pkg-1.0-py3-none-any.whl pkg
-#   ./check_dist.sh dist/pkg-1.0.tar.gz my-pkg my_pkg "numpy,pandas" true
-#
-# Functions (when sourced):
+# Functions:
+#   check_dist <archive> <package_name> [module_name] [extras] [check_types]
+#       Verify one archive and print one error line per failed check. Returns
+#       1 if any check failed. module_name defaults to package_name with "-"
+#       and "." replaced by "_" (a dot means a sub-package: a.b -> a/b/py.typed).
+#       extras is a comma-separated list. check_types is "true" (default) or
+#       "false": whether py.typed is required in a wheel (ignored for an sdist)
 #   read_version <archive> - print the Version of the core metadata
 #
-# Exit Codes:
+# Return Codes:
 #   0 - All checks passed
 #   1 - A check failed, or the archive is missing or unreadable
-#   2 - Invalid arguments (including a module_name that is not a dotted
-#       identifier)
-
-set -euo pipefail
 
 # shellcheck source=scripts/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
-
-usage() {
-	echo "Usage: $0 <archive> <package_name> [module_name] [extras] [check_types]" >&2
-}
 
 # Print the paths of all entries of the archive, one per line.
 list_archive() {
@@ -169,29 +154,3 @@ check_dist() {
 	fi
 	log_ok "${archive##*/}: name ${name}, version ${version}"
 }
-
-main() {
-	if [ $# -lt 2 ] || [ $# -gt 5 ]; then
-		usage
-		exit 2
-	fi
-	if [ -n "${3:-}" ] && ! is_dotted_identifier "$3"; then
-		echo "Error: module_name must be a dotted identifier (got '$3')" >&2
-		usage
-		exit 2
-	fi
-	case "${5:-true}" in
-	true | false) ;;
-	*)
-		echo "Error: check_types must be 'true' or 'false'" >&2
-		usage
-		exit 2
-		;;
-	esac
-	check_dist "$@" || exit 1
-}
-
-# Only run main if script is executed directly (not sourced)
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-	main "$@"
-fi

@@ -3,49 +3,41 @@
 # check_install.sh - Verify an installed package and that it imports
 #
 # Description:
-#   Runs `uv pip show` once for the package installed in the active
-#   environment and checks:
+#   Runs `uv pip show` once for the package installed in a virtual environment
+#   and checks:
 #     - the installed name matches <package_name> (PEP 503 normalized)
 #     - the installed version is set, is not 0.0.0, and (if given) equals
 #       <expected_version>
 #     - every requested dependency is listed in `Requires` (normalized)
 #     - the module imports, and its location is inside site-packages
 #   The module is passed to Python as an argument, never interpolated into
-#   source. Run it from a directory that is not the project checkout,
-#   otherwise a source tree on `sys.path` hides a broken package.
-#   All failures are reported before the script exits.
+#   source, and imported with `python -I` (isolated mode: neither the working
+#   directory nor the environment variables are used), so a source tree in the
+#   checkout cannot hide a broken package. All failures are reported before the
+#   function returns.
 #
-# Usage:
-#   ./check_install.sh <package_name> [module_name] [dependencies] [expected_version]
+# Library sourced by verify.sh, not a command. Its functions trust their
+# caller: the inputs are validated once, in verify.sh.
 #
-# Arguments:
-#   package_name      Distribution name (required)
-#   module_name       Import name. Default: package_name with "-" and "."
-#                     replaced by "_"
-#   dependencies      Comma-separated direct dependencies that must be
-#                     installed. Default: none
-#   expected_version  Version the installed package must have. Default: any
-#
-# Examples:
-#   ./check_install.sh myproject
-#   ./check_install.sh my-project my_project "coola,numpy" 1.2.0
+# Functions:
+#   check_install <venv> <package_name> [module_name] [dependencies] [expected_version]
+#       venv              Environment where the package is installed
+#       package_name      Distribution name
+#       module_name       Import name. Default: package_name with "-" and "."
+#                         replaced by "_"
+#       dependencies      Comma-separated direct dependencies that must be
+#                         installed. Default: none
+#       expected_version  Version the installed package must have. Default: any
 #
 # Requirements:
-#   - uv and python available in PATH (the environment under test is active)
+#   - uv available in PATH
 #
-# Exit Codes:
+# Return Codes:
 #   0 - All checks passed
 #   1 - A check failed
-#   2 - Invalid arguments
-
-set -euo pipefail
 
 # shellcheck source=scripts/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
-
-usage() {
-	echo "Usage: $0 <package_name> [module_name] [dependencies] [expected_version]" >&2
-}
 
 # Print the value of a `uv pip show` field.
 show_field() {
@@ -54,27 +46,28 @@ show_field() {
 
 # Print the location of the imported module, or fail with the import error.
 import_location() {
-	python -I -c '
+	"$1/bin/python" -I -c '
 import importlib
 import sys
 
 module = importlib.import_module(sys.argv[1])
 path = getattr(module, "__file__", None) or list(module.__path__)[0]
 print(path)
-' "$1"
+' "$2"
 }
 
 check_install() {
-	local package_name="$1"
-	local module_name="${2:-}"
-	local dependencies="${3:-}"
-	local expected_version="${4:-}"
+	local venv="$1"
+	local package_name="$2"
+	local module_name="${3:-}"
+	local dependencies="${4:-}"
+	local expected_version="${5:-}"
 	local failures=0
 	local info name version requires dep location
 
 	[ -n "${module_name}" ] || module_name="$(default_module_name "${package_name}")"
 
-	if ! info="$(uv pip show --no-config "${package_name}")"; then
+	if ! info="$(uv pip show --no-config --python "${venv}" "${package_name}")"; then
 		log_error "package not installed (expected ${package_name}, got nothing from uv pip show)"
 		return 1
 	fi
@@ -111,7 +104,7 @@ check_install() {
 		fi
 	done < <(split_csv "${dependencies}")
 
-	if ! location="$(import_location "${module_name}" 2>&1)"; then
+	if ! location="$(import_location "${venv}" "${module_name}" 2>&1)"; then
 		log_error "cannot import ${module_name} (expected a successful import, got: $(tail -n 1 <<<"${location}"))"
 		failures=$((failures + 1))
 	else
@@ -129,16 +122,3 @@ check_install() {
 	fi
 	log_ok "${package_name} ${version} is installed and importable"
 }
-
-main() {
-	if [ $# -lt 1 ] || [ $# -gt 4 ]; then
-		usage
-		exit 2
-	fi
-	check_install "$@" || exit 1
-}
-
-# Only run main if script is executed directly (not sourced)
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-	main "$@"
-fi
