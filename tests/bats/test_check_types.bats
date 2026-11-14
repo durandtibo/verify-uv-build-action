@@ -30,11 +30,38 @@ teardown() {
 	rm -rf "${WORK}"
 }
 
-@test "exits with code 2 when no module name is provided" {
+@test "exits with code 2 when no package name is provided" {
 	run --separate-stderr bash "${SCRIPT}"
 	[ "$status" -eq 2 ]
-	[[ "$stderr" =~ "module name is required" ]]
+	[[ "$stderr" =~ "package_name" ]]
 	[[ "$stderr" =~ "Usage:" ]]
+}
+
+@test "exits with code 2 with more than two arguments" {
+	run -2 bash "${SCRIPT}" mypkg mypkg extra
+}
+
+@test "module name defaults from the package name (regression G10)" {
+	run bash "${SCRIPT}" my-pkg.x
+	[ "$status" -eq 0 ]
+	[[ "$(cat "${WORK}/uvx_args")" == *"--verifytypes my_pkg_x"* ]]
+}
+
+@test "an explicit module name wins over the package name" {
+	run bash "${SCRIPT}" my-pkg other_mod
+	[[ "$(cat "${WORK}/uvx_args")" == *"--verifytypes other_mod"* ]]
+}
+
+@test "an empty module name falls back to the default" {
+	run bash "${SCRIPT}" my-pkg ""
+	[ "$status" -eq 0 ]
+	[[ "$(cat "${WORK}/uvx_args")" == *"--verifytypes my_pkg"* ]]
+}
+
+@test "an invalid module name exits with code 2" {
+	run --separate-stderr bash "${SCRIPT}" mypkg 'a b'
+	[ "$status" -eq 2 ]
+	[[ "$stderr" =~ "dotted identifier" ]]
 }
 
 @test "exits with code 2 when PYRIGHT_VERSION is missing" {

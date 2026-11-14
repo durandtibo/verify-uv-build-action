@@ -173,10 +173,53 @@ make_sdist() {
 	[ "$status" -eq 1 ]
 }
 
-@test "sdist py.typed in an unrelated directory fails (F5)" {
-	f="$(make_sdist mypkg 1.0 tests/other)"
-	run bash "${SCRIPT}" "$f" mypkg
+@test "wheel with py.typed only under tests/ fails (regression G4)" {
+	f="$(make_wheel mypkg 1.0 tests/mypkg)"
+	run --separate-stderr bash "${SCRIPT}" "$f" mypkg
 	[ "$status" -eq 1 ]
+	[[ "$stderr" =~ "py.typed marker missing" ]]
+}
+
+@test "sdist without py.typed passes: only the wheel is checked (regression G4)" {
+	f="$(make_sdist mypkg 1.0 -)"
+	run bash "${SCRIPT}" "$f" mypkg
+	[ "$status" -eq 0 ]
+}
+
+@test "sdist with py.typed under tests/ does not matter (regression G4)" {
+	f="$(make_sdist mypkg 1.0 tests/mypkg)"
+	run bash "${SCRIPT}" "$f" mypkg
+	[ "$status" -eq 0 ]
+}
+
+@test "module_name that is not a dotted identifier exits 2 (regression G5)" {
+	f="$(make_wheel mypkg 1.0 -)"
+	run --separate-stderr bash "${SCRIPT}" "$f" mypkg 'a+b'
+	[ "$status" -eq 2 ]
+	[[ "$stderr" =~ "dotted identifier" ]]
+}
+
+@test "module_name with a parenthesis exits 2 (regression G5)" {
+	f="$(make_wheel mypkg 1.0 -)"
+	run -2 bash "${SCRIPT}" "$f" mypkg 'a(b'
+}
+
+@test "read_version prints the version of a wheel" {
+	f="$(make_wheel mypkg 1.2.3 -)"
+	run bash -c "source '${SCRIPT}'; read_version '$f'"
+	[ "$status" -eq 0 ]
+	[ "$output" = "1.2.3" ]
+}
+
+@test "read_version prints the version of an sdist" {
+	f="$(make_sdist mypkg 4.5.6 -)"
+	run bash -c "source '${SCRIPT}'; read_version '$f'"
+	[ "$output" = "4.5.6" ]
+}
+
+@test "read_version fails on a missing archive" {
+	run bash -c "source '${SCRIPT}'; read_version '${WORK}/nope.whl'"
+	[ "$status" -ne 0 ]
 }
 
 @test "py.typed of a longer module name does not match" {
