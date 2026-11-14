@@ -244,8 +244,8 @@ Changes:
   checks locally" section reduced to `PACKAGE_NAME=mypkg bash scripts/verify.sh`, troubleshooting
   with one row per `❌` message including the new ones, the migration table below.
 - `CONTRIBUTING.md`: repository structure and test sections list `verify.sh` and `make test-shell`.
-- `CLAUDE.md`: purpose paragraph lists `verify.sh`; workflow section describes the `released` input and
-  the shortened nightly. These edits are part of the PR that changes the behaviour.
+- `CLAUDE.md`: purpose paragraph lists `verify.sh`; workflow section describes the `released`
+  input and the shortened nightly. These edits are part of the PR that changes the behaviour.
 
 ## 4. Breaking changes and migration
 
