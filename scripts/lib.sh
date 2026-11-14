@@ -14,7 +14,9 @@
 #   log_ok <message>      - print "✅ <message>" on stdout
 #   log_error <message>   - print "❌ <message>" on stderr, plus a
 #                           "::error::<message>" annotation when
-#                           GITHUB_ACTIONS is "true"
+#                           GITHUB_ACTIONS is "true". When REPORT_FILE is
+#                           set, also append "error|<message>" to it (the
+#                           job summary of verify.sh is built from it)
 #   die <message>         - log_error, then exit 1
 #   normalize_name <name> - PEP 503/685 normalization (lowercase, runs of
 #                           "-", "_" and "." become a single "-")
@@ -43,6 +45,9 @@ log_error() {
 	echo "❌ $*" >&2
 	if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
 		echo "::error::$*"
+	fi
+	if [ -n "${REPORT_FILE:-}" ]; then
+		echo "error|$*" >>"${REPORT_FILE}"
 	fi
 }
 
