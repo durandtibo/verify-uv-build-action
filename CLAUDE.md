@@ -10,8 +10,9 @@ the resulting wheel and sdist: name, version, `py.typed` marker and extras in th
 (pyright). All the logic lives in `scripts/*.sh` (bash, must work on GNU/Linux and BSD/macOS) and is
 tested with [bats](https://github.com/bats-core/bats-core) in `tests/bats/`: `verify.sh` (the entry
 point of the action, also run locally with `PACKAGE_NAME=<pkg> bash scripts/verify.sh`), `lib.sh`
-(shared helpers), `check_dist.sh`, `check_install.sh` and `check_types.sh`. `action.yaml` only wires
-the inputs to `verify.sh`.
+(shared helpers), `check_dist.sh`, `check_install.sh` and `check_types.sh`. Only `verify.sh` is
+executable: the others are libraries sourced by it and called as functions with explicit
+arguments. `action.yaml` only wires the inputs to `verify.sh`.
 
 `src/myproject/` and `pyproject.toml` are a small dummy Python package
 used as the fixture that the action builds and verifies in CI. They are not part of the action. The

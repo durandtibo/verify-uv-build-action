@@ -7,6 +7,11 @@ setup() {
 	WORK="$(mktemp -d)"
 }
 
+# Run <function> [args] from the sourced library.
+call() {
+	bash -c 'set -euo pipefail; source "$1"; shift; "$@"' _ "${SCRIPT}" "$@"
+}
+
 teardown() {
 	rm -rf "${WORK}"
 }
@@ -64,33 +69,22 @@ make_sdist() {
 	echo "${file}"
 }
 
-@test "usage error without arguments exits 2" {
-	run bash "${SCRIPT}"
-	[ "$status" -eq 2 ]
-	[[ "$output" =~ "Usage:" ]]
-}
-
-@test "usage error with invalid check_types exits 2" {
-	run bash "${SCRIPT}" a.whl pkg pkg "" maybe
-	[ "$status" -eq 2 ]
-}
-
 @test "wheel ok" {
 	f="$(make_wheel mypkg 1.0 mypkg numpy)"
-	run bash "${SCRIPT}" "$f" mypkg mypkg numpy
+	run call check_dist "$f" mypkg mypkg numpy
 	[ "$status" -eq 0 ]
 	[[ "$output" =~ "✅" ]]
 }
 
 @test "sdist ok" {
 	f="$(make_sdist mypkg 1.0 src/mypkg numpy)"
-	run bash "${SCRIPT}" "$f" mypkg mypkg numpy
+	run call check_dist "$f" mypkg mypkg numpy
 	[ "$status" -eq 0 ]
 }
 
 @test "wheel with wrong name fails" {
 	f="$(make_wheel other 1.0 other)"
-	run --separate-stderr bash "${SCRIPT}" "$f" mypkg other
+	run --separate-stderr call check_dist "$f" mypkg other
 	[ "$status" -eq 1 ]
 	[[ "$stderr" =~ "❌ wrong package name" ]]
 	[[ "$stderr" =~ "expected mypkg, got other" ]]
@@ -98,110 +92,98 @@ make_sdist() {
 
 @test "sdist with wrong name fails" {
 	f="$(make_sdist other 1.0 other)"
-	run --separate-stderr bash "${SCRIPT}" "$f" mypkg other
+	run --separate-stderr call check_dist "$f" mypkg other
 	[ "$status" -eq 1 ]
 	[[ "$stderr" =~ "wrong package name" ]]
 }
 
 @test "package name is compared in normalized form" {
 	f="$(make_wheel my_pkg 1.0 my_pkg)"
-	run bash "${SCRIPT}" "$f" My.Pkg my_pkg
+	run call check_dist "$f" My.Pkg my_pkg
 	[ "$status" -eq 0 ]
 }
 
 @test "wheel version 0.0.0 fails" {
 	f="$(make_wheel mypkg 0.0.0 mypkg)"
-	run --separate-stderr bash "${SCRIPT}" "$f" mypkg
+	run --separate-stderr call check_dist "$f" mypkg
 	[ "$status" -eq 1 ]
 	[[ "$stderr" =~ "invalid version" ]]
 }
 
 @test "sdist version 0.0.0 fails" {
 	f="$(make_sdist mypkg 0.0.0 mypkg)"
-	run --separate-stderr bash "${SCRIPT}" "$f" mypkg
+	run --separate-stderr call check_dist "$f" mypkg
 	[ "$status" -eq 1 ]
 }
 
 @test "wheel with missing extra fails" {
 	f="$(make_wheel mypkg 1.0 mypkg numpy)"
-	run --separate-stderr bash "${SCRIPT}" "$f" mypkg mypkg "numpy,torch"
+	run --separate-stderr call check_dist "$f" mypkg mypkg "numpy,torch"
 	[ "$status" -eq 1 ]
 	[[ "$stderr" =~ "expected torch" ]]
 }
 
 @test "sdist with missing extra fails" {
 	f="$(make_sdist mypkg 1.0 mypkg numpy)"
-	run --separate-stderr bash "${SCRIPT}" "$f" mypkg mypkg torch
+	run --separate-stderr call check_dist "$f" mypkg mypkg torch
 	[ "$status" -eq 1 ]
 	[[ "$stderr" =~ "extra not defined" ]]
 }
 
 @test "extra with different case and separator passes" {
 	f="$(make_wheel mypkg 1.0 mypkg foo-bar)"
-	run bash "${SCRIPT}" "$f" mypkg mypkg "Foo_Bar"
+	run call check_dist "$f" mypkg mypkg "Foo_Bar"
 	[ "$status" -eq 0 ]
 }
 
 @test "extra name is not used as a regex" {
 	f="$(make_wheel mypkg 1.0 mypkg numpy)"
-	run bash "${SCRIPT}" "$f" mypkg mypkg "nu.py"
+	run call check_dist "$f" mypkg mypkg "nu.py"
 	[ "$status" -eq 1 ]
 }
 
 @test "empty extras list passes" {
 	f="$(make_wheel mypkg 1.0 mypkg)"
-	run bash "${SCRIPT}" "$f" mypkg mypkg ""
+	run call check_dist "$f" mypkg mypkg ""
 	[ "$status" -eq 0 ]
 }
 
 @test "extras list with spaces and trailing comma passes" {
 	f="$(make_wheel mypkg 1.0 mypkg a b)"
-	run bash "${SCRIPT}" "$f" mypkg mypkg " a , b ,"
+	run call check_dist "$f" mypkg mypkg " a , b ,"
 	[ "$status" -eq 0 ]
 }
 
 @test "wheel without py.typed fails" {
 	f="$(make_wheel mypkg 1.0 -)"
-	run --separate-stderr bash "${SCRIPT}" "$f" mypkg
+	run --separate-stderr call check_dist "$f" mypkg
 	[ "$status" -eq 1 ]
 	[[ "$stderr" =~ "expected mypkg/py.typed" ]]
 }
 
 @test "py.typed in an unrelated directory fails (F5)" {
 	f="$(make_wheel mypkg 1.0 tests/other)"
-	run bash "${SCRIPT}" "$f" mypkg
+	run call check_dist "$f" mypkg
 	[ "$status" -eq 1 ]
 }
 
 @test "wheel with py.typed only under tests/ fails (regression G4)" {
 	f="$(make_wheel mypkg 1.0 tests/mypkg)"
-	run --separate-stderr bash "${SCRIPT}" "$f" mypkg
+	run --separate-stderr call check_dist "$f" mypkg
 	[ "$status" -eq 1 ]
 	[[ "$stderr" =~ "py.typed marker missing" ]]
 }
 
 @test "sdist without py.typed passes: only the wheel is checked (regression G4)" {
 	f="$(make_sdist mypkg 1.0 -)"
-	run bash "${SCRIPT}" "$f" mypkg
+	run call check_dist "$f" mypkg
 	[ "$status" -eq 0 ]
 }
 
 @test "sdist with py.typed under tests/ does not matter (regression G4)" {
 	f="$(make_sdist mypkg 1.0 tests/mypkg)"
-	run bash "${SCRIPT}" "$f" mypkg
+	run call check_dist "$f" mypkg
 	[ "$status" -eq 0 ]
-}
-
-@test "module_name that is not a dotted identifier exits 2 (regression G5)" {
-	f="$(make_wheel mypkg 1.0 -)"
-	run --separate-stderr bash "${SCRIPT}" "$f" mypkg 'a+b'
-	[ "$status" -eq 2 ]
-	[[ "$stderr" =~ "dotted identifier" ]]
-}
-
-@test "module_name with a parenthesis exits 2 (regression G5)" {
-	f="$(make_wheel mypkg 1.0 -)"
-	run -2 bash "${SCRIPT}" "$f" mypkg 'a(b'
 }
 
 @test "read_version prints the version of a wheel" {
@@ -224,37 +206,37 @@ make_sdist() {
 
 @test "py.typed of a longer module name does not match" {
 	f="$(make_wheel mypkg 1.0 not_mypkg)"
-	run bash "${SCRIPT}" "$f" mypkg
+	run call check_dist "$f" mypkg
 	[ "$status" -eq 1 ]
 }
 
 @test "sdist py.typed in flat layout passes" {
 	f="$(make_sdist mypkg 1.0 mypkg)"
-	run bash "${SCRIPT}" "$f" mypkg
+	run call check_dist "$f" mypkg
 	[ "$status" -eq 0 ]
 }
 
 @test "dotted module name means a sub-package" {
 	f="$(make_wheel mypkg 1.0 a/b)"
-	run bash "${SCRIPT}" "$f" mypkg a.b
+	run call check_dist "$f" mypkg a.b
 	[ "$status" -eq 0 ]
 }
 
 @test "default module name replaces hyphens and dots" {
 	f="$(make_wheel my-pkg.x 1.0 my_pkg_x)"
-	run bash "${SCRIPT}" "$f" my-pkg.x
+	run call check_dist "$f" my-pkg.x
 	[ "$status" -eq 0 ]
 }
 
 @test "check_types false skips the py.typed marker" {
 	f="$(make_wheel mypkg 1.0 -)"
-	run bash "${SCRIPT}" "$f" mypkg mypkg "" false
+	run call check_dist "$f" mypkg mypkg "" false
 	[ "$status" -eq 0 ]
 }
 
 @test "all failures are reported in one run" {
 	f="$(make_wheel other 0.0.0 -)"
-	run --separate-stderr bash "${SCRIPT}" "$f" mypkg mypkg torch
+	run --separate-stderr call check_dist "$f" mypkg mypkg torch
 	[ "$status" -eq 1 ]
 	[[ "$stderr" =~ "wrong package name" ]]
 	[[ "$stderr" =~ "invalid version" ]]
@@ -263,27 +245,27 @@ make_sdist() {
 }
 
 @test "missing file fails" {
-	run --separate-stderr bash "${SCRIPT}" "${WORK}/nope.whl" mypkg
+	run --separate-stderr call check_dist "${WORK}/nope.whl" mypkg
 	[ "$status" -eq 1 ]
 	[[ "$stderr" =~ "archive not found" ]]
 }
 
 @test "wrong extension fails" {
 	touch "${WORK}/file.zip"
-	run --separate-stderr bash "${SCRIPT}" "${WORK}/file.zip" mypkg
+	run --separate-stderr call check_dist "${WORK}/file.zip" mypkg
 	[ "$status" -eq 1 ]
 	[[ "$stderr" =~ "unsupported archive type" ]]
 }
 
 @test "sdist without PKG-INFO fails" {
 	PKGINFO=0 f="$(PKGINFO=0 make_sdist mypkg 1.0 mypkg)"
-	run --separate-stderr bash "${SCRIPT}" "$f" mypkg
+	run --separate-stderr call check_dist "$f" mypkg
 	[ "$status" -eq 1 ]
 	[[ "$stderr" =~ "core metadata file not found" ]]
 }
 
 @test "headers after the first blank line are ignored" {
 	f="$(make_wheel mypkg 1.0 mypkg)"
-	run bash "${SCRIPT}" "$f" mypkg
+	run call check_dist "$f" mypkg
 	[ "$status" -eq 0 ]
 }

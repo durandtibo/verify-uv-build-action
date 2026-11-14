@@ -3,18 +3,19 @@
 # verify.sh - Build a Python package with uv and verify the wheel and sdist
 #
 # Description:
-#   Entry point of the action, also usable locally. Phases, each in a log
+#   Entry point of the action, also usable locally. The check_*.sh scripts
+#   are libraries sourced here, not commands. Phases, each in a log
 #   group, in a fail-fast order:
 #     1. validate the inputs (every invalid input is reported, exit 2)
 #     2. build with `uv build --no-config --no-sources` into a new work directory, check
 #        that there is exactly one wheel and one sdist
-#     3. check the archives: check_dist.sh on both, same version in both,
+#     3. check the archives: check_dist on both, same version in both,
 #        `twine check --strict`
 #     4. install each selected artifact in its own venv; every uv call uses
 #        `--no-config`, so the project configuration (`[tool.uv]`, `uv.toml`)
 #        is never read
-#     5. check_install.sh for each venv
-#     6. check_types.sh once, on the first installed artifact (if CHECK_TYPES)
+#     5. check_install for each venv
+#     6. check_types once, on the first installed artifact (if CHECK_TYPES)
 #   Every invocation gets its own work directory, which is never deleted, so
 #   the outputs of an earlier invocation stay valid.
 #
@@ -55,6 +56,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib.sh"
 # shellcheck source=scripts/check_dist.sh
 source "${SCRIPT_DIR}/check_dist.sh"
+# shellcheck source=scripts/check_install.sh
+source "${SCRIPT_DIR}/check_install.sh"
+# shellcheck source=scripts/check_types.sh
+source "${SCRIPT_DIR}/check_types.sh"
 
 # Fill the optional inputs that are unset or empty with their default.
 apply_defaults() {
@@ -161,10 +166,10 @@ build_dists() {
 # Check the metadata of both archives, that they agree, and run twine.
 check_archives() {
 	local status=0 sdist_version
-	bash "${SCRIPT_DIR}/check_dist.sh" "${WHEEL_PATH}" "${PACKAGE_NAME}" "${MODULE_NAME}" \
+	check_dist "${WHEEL_PATH}" "${PACKAGE_NAME}" "${MODULE_NAME}" \
 		"${PACKAGE_EXTRA}" "${CHECK_TYPES}" || status=1
 	# The wheel is built from the sdist: the marker is only checked in the wheel.
-	bash "${SCRIPT_DIR}/check_dist.sh" "${SDIST_PATH}" "${PACKAGE_NAME}" "${MODULE_NAME}" \
+	check_dist "${SDIST_PATH}" "${PACKAGE_NAME}" "${MODULE_NAME}" \
 		"${PACKAGE_EXTRA}" false || status=1
 	if sdist_version="$(read_version "${SDIST_PATH}")" && [ "${sdist_version}" != "${VERSION}" ]; then
 		log_error "wheel and sdist have different versions (expected ${VERSION}, got ${sdist_version} in ${SDIST_PATH##*/})"
@@ -202,21 +207,17 @@ install_dist() {
 	log_ok "${type} installed"
 }
 
-# Run check_install.sh on the venv of one artifact, outside the checkout so
-# that the source tree cannot be imported instead of the installed package.
+# Check the installed package of one artifact. The import runs in isolated
+# mode, so the source tree of the checkout cannot be imported instead.
 check_installed() {
 	local type="$1"
-	local venv="${WORK}/venv-${type}"
 	echo "🔍 Checking the installed ${type}"
-	(cd "${WORK}" && VIRTUAL_ENV="${venv}" PATH="${venv}/bin:${PATH}" \
-		bash "${SCRIPT_DIR}/check_install.sh" "${PACKAGE_NAME}" "${MODULE_NAME}" \
-		"${PACKAGE_DEPENDENCIES}" "${VERSION}")
+	check_install "${WORK}/venv-${type}" "${PACKAGE_NAME}" "${MODULE_NAME}" \
+		"${PACKAGE_DEPENDENCIES}" "${VERSION}"
 }
 
 check_types_installed() {
-	local type="$1"
-	(cd "${WORK}" && VIRTUAL_ENV="${WORK}/venv-${type}" PYRIGHT_VERSION="${PYRIGHT_VERSION}" \
-		bash "${SCRIPT_DIR}/check_types.sh" "${PACKAGE_NAME}" "${MODULE_NAME}")
+	check_types "${WORK}/venv-$1" "${PACKAGE_NAME}" "${MODULE_NAME}" "${PYRIGHT_VERSION}"
 }
 
 # Run "<function> <type>" for each selected type, report all failures.
