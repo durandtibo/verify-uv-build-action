@@ -7,7 +7,6 @@
 # a feature the last release does not have yet are listed in that test.
 
 name: Test Action
-
 on:
   workflow_call:
     inputs:

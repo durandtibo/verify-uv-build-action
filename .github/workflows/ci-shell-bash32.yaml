@@ -1,0 +1,45 @@
+# Shell unit tests with the system bash 3.2 (macOS).
+# The bash of macOS is 3.2, where a failing "[[ ]]" or "! cmd" that is not the
+# last command of a test does not fail it.
+# bats runs the tests with the first bash of the PATH, which may be a newer one
+# installed by Homebrew, so this workflow puts the system bash first in the PATH.
+
+name: Shell Unit Tests (system bash 3.2)
+on:
+  workflow_call:
+    inputs:
+      test-matrix:
+        description: "JSON test matrix from lib-get-test-matrix.yaml, loaded once by the caller"
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  test:
+    permissions:
+      contents: read
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      max-parallel: 8
+      fail-fast: false
+      matrix:
+        os: ${{ fromJson(inputs.test-matrix).os_macos }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+
+      - name: Install bats-core
+        shell: bash
+        run: make install-bats
+
+      - name: Run unit tests with the system bash 3.2 (macOS)
+        shell: bash
+        run: |
+          system_bash_dir="$(mktemp -d)"
+          ln -s /bin/bash "$system_bash_dir/bash"
+          PATH="$system_bash_dir:$PATH" bash --version | head -n 1
+          PATH="$system_bash_dir:$PATH" make test-shell
+          echo "✅ All tests passed with the system bash on ${{ matrix.os }}"

@@ -71,6 +71,7 @@ Files are prefixed by role:
   holds no steps, only jobs that call the reusable `ci-*.yaml` workflows below.
   - `ci-format.yaml`: shell, Markdown and YAML lint/format checks.
   - `ci-shell.yaml`: bats tests on the OS matrix.
+  - `ci-shell-bash32.yaml`: bats tests on macOS with the system bash 3.2.
   - `ci-action.yaml`: runs the action from this checkout (`uses: ./`), i.e. the version not
     released yet, across the Python/OS matrix with every package extra, and runs the failure and
     edge cases of `tests/cases.json` (one row per case: inputs, optional `setup` snippet, expected

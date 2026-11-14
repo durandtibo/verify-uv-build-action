@@ -29,6 +29,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
 
       - name: Install bats-core
+        shell: bash
         run: make install-bats
 
       - name: Show the versions of bash and bats
