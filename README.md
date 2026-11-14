@@ -3,25 +3,34 @@
 [![CI](https://github.com/durandtibo/verify-uv-build-action/actions/workflows/ci.yaml/badge.svg)](https://github.com/durandtibo/verify-uv-build-action/actions/workflows/ci.yaml)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://github.com/durandtibo/verify-uv-build-action/blob/main/LICENSE)
 
-A GitHub Action to build Python packages with [uv](https://github.com/astral-sh/uv)
-and comprehensively verify their quality, metadata, and installability.
+A GitHub Action that builds a Python project with [uv](https://github.com/astral-sh/uv) and
+verifies that the **published artifacts** (the wheel and the sdist) are correct and usable. It
+checks the built files and a clean install, never the source tree.
 
-## Features
+## What is verified
 
-- 🚀 **Fast builds** with uv package manager
-- 📦 **Dual format support** - test both wheel and sdist distributions
-- ✅ **Type checking** - verify py.typed markers and type hints with pyright
-- 🔍 **Metadata validation** - check package metadata with twine
-- 🌲 **Dependency verification** - validate dependency tree structure
-- 📚 **Import testing** - ensure package is importable and has valid version
-- 🔧 **Flexible** - optional scripts for project-specific needs
+| Check                                                               | Wheel | Sdist | Install |
+| ------------------------------------------------------------------- | :---: | :---: | :-----: |
+| Exactly one wheel and one sdist are built (`uv build --no-sources`) |  ✅   |  ✅   |         |
+| Distribution name matches `package-name` (normalized)               |  ✅   |  ✅   |   ✅    |
+| Version is not the placeholder `0.0.0`                              |  ✅   |  ✅   |   ✅    |
+| Installed version equals the built wheel version                    |       |       |   ✅    |
+| Every `package-extra` is in `Provides-Extra`                        |  ✅   |  ✅   |         |
+| `<module>/py.typed` is present (if `check-types`)                   |  ✅   |  ✅   |         |
+| `twine check --strict`                                              |  ✅   |  ✅   |         |
+| Every `package-dependencies` entry is installed                     |       |       |   ✅    |
+| The module imports from `site-packages`, run outside the checkout   |       |       |   ✅    |
+| Type completeness with `pyright --verifytypes` (if `check-types`)   |       |       |   ✅    |
 
-## Usage
+Checks run in a fail-fast order: input validation, archive checks (milliseconds), install, then
+checks that need an environment. A check that cannot run is a failure, never a skip. Artifacts and
+the virtual environment live in `$RUNNER_TEMP`: the workspace is not modified and no environment
+variable is exported to later steps. Only Linux and macOS runners are supported.
 
-### Basic Example
+## Quick start
 
 ```yaml
-name: Build and Verify
+name: Verify build
 
 on: [push, pull_request]
 
@@ -30,18 +39,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: durandtibo/verify-uv-build-action@v0.0.7
+      - uses: durandtibo/verify-uv-build-action@v0.1.0
         with:
           package-name: mypackage
 ```
 
-### Advanced Example with Matrix
+Releases are immutable exact version tags. There are no floating tags such as `v0` or `latest`.
+For a stronger guarantee, pin the commit SHA of the release:
+`durandtibo/verify-uv-build-action@<sha> # v0.1.0`.
+
+### Matrix example
 
 ```yaml
-name: Build and Verify
-
-on: [push, pull_request]
-
 jobs:
   verify:
     runs-on: ${{ matrix.os }}
@@ -52,28 +61,48 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v6
-      - uses: durandtibo/verify-uv-build-action@v0.0.7
+      - uses: durandtibo/verify-uv-build-action@v0.1.0
         with:
           package-name: mypackage
           dist-type: ${{ matrix.dist-type }}
           python-version: ${{ matrix.python-version }}
           package-extra: all
+          package-dependencies: numpy
+```
+
+### Monorepo example
+
+```yaml
+- uses: durandtibo/verify-uv-build-action@v0.1.0
+  with:
+    package-name: subpackage
+    project-path: packages/subpackage
+```
+
+### Use the outputs
+
+```yaml
+- id: verify
+  uses: durandtibo/verify-uv-build-action@v0.1.0
+  with:
+    package-name: mypackage
+- run: echo "Built ${{ steps.verify.outputs.version }} at ${{ steps.verify.outputs.wheel-path }}"
 ```
 
 ## Inputs
 
-| Input                  | Required | Default   | Description                                                                                        |
-| ---------------------- | -------- | --------- | -------------------------------------------------------------------------------------------------- |
-| `package-name`         | Yes      | -         | The name of the package to verify (distribution name on PyPI)                                      |
-| `module-name`          | No       | `""`      | The name used in import statements (defaults to package-name with hyphens replaced by underscores) |
-| `package-extra`        | No       | `""`      | Optional package extras to install (e.g., `dev`, `test`)                                           |
-| `package-dependencies` | No       | `""`      | Comma-separated list of required dependencies to verify                                            |
-| `dist-type`            | No       | `wheel`   | Distribution type to test: `wheel` or `sdist`                                                      |
-| `python-version`       | No       | `3.13`    | Python version to use for testing                                                                  |
-| `project-path`         | No       | `.`       | Directory containing `pyproject.toml` (monorepos)                                                  |
-| `twine-version`        | No       | `7.0.0`   | Version of twine used by `twine check`                                                             |
-| `pyright-version`      | No       | `1.1.414` | Version of pyright used by `pyright --verifytypes`                                                 |
-| `check-types`          | No       | `true`    | Check the `py.typed` marker and type completeness. Set `false` for untyped packages                |
+| Input                  | Required | Default   | Description                                                                                    |
+| ---------------------- | -------- | --------- | ---------------------------------------------------------------------------------------------- |
+| `package-name`         | Yes      | -         | The name of the package to verify (distribution name on PyPI)                                  |
+| `module-name`          | No       | `""`      | The name used in import statements (defaults to package-name with `-` and `.` replaced by `_`) |
+| `package-extra`        | No       | `""`      | Extras to install and verify, comma-separated (e.g., `dev,test`)                               |
+| `package-dependencies` | No       | `""`      | Comma-separated direct dependencies that must be installed                                     |
+| `dist-type`            | No       | `wheel`   | Artifact that is installed and tested: `wheel` or `sdist`. Both are always built and inspected |
+| `python-version`       | No       | `3.13`    | Python version to use for testing                                                              |
+| `project-path`         | No       | `.`       | Directory containing `pyproject.toml` (monorepos)                                              |
+| `twine-version`        | No       | `7.0.0`   | Version of twine used by `twine check`                                                         |
+| `pyright-version`      | No       | `1.1.414` | Version of pyright used by `pyright --verifytypes`                                             |
+| `check-types`          | No       | `true`    | Check the `py.typed` marker and type completeness. Set `false` for untyped packages            |
 
 ## Outputs
 
@@ -83,33 +112,64 @@ jobs:
 | `sdist-path` | Absolute path of the built sdist      |
 | `version`    | Version from the built wheel metadata |
 
-## What Does This Action Do?
-
-This action performs a comprehensive verification of your Python package build:
-
-1. **Build Validation**: Builds the package using `uv build`
-2. **Type Marker Check**: Verifies `py.typed` marker exists (for typed packages)
-3. **Package Installation**: Installs the built distribution
-4. **Metadata Validation**: Runs `twine check` on distributions
-5. **Import Test**: Verifies the package can be imported
-6. **Version Check**: Ensures version is not the placeholder "0.0.0"
-7. **Type Hints Check**: Validates type hints with pyright (if configured)
-
 ## Requirements
 
-- Your project must have a `pyproject.toml` compatible with `uv`
-- For type checking: include a `py.typed` marker file in your package
+- A `pyproject.toml` compatible with `uv build`. The build uses `--no-sources`: it ignores
+  `[tool.uv.sources]`, so the project must build the way a user installing from PyPI gets it.
+- For type checking: a `<module>/py.typed` marker in the package, or `check-types: false`.
 
 ## Troubleshooting
 
-### "Error: input 'dist-type' must be 'wheel' or 'sdist'"
+Each failure prints one `❌` line that says what was expected and what was found. Details are in
+the collapsed log groups.
 
-Ensure the `dist-type` input is exactly `wheel` or `sdist` (case-sensitive).
+| Message starts with                       | Cause and fix                                                                         |
+| ----------------------------------------- | ------------------------------------------------------------------------------------- |
+| `Input 'dist-type' must be`               | Use exactly `wheel` or `sdist`.                                                       |
+| `Input 'check-types' must be`             | Use exactly `true` or `false`.                                                        |
+| `No pyproject.toml found in project-path` | Fix `project-path`, it must contain `pyproject.toml`.                                 |
+| `Input 'package-name' is not a valid`     | Use the distribution name, for example `my-package`.                                  |
+| `Expected exactly 1 wheel` / `1 sdist`    | The build produced no artifact or several. Check the build backend configuration.     |
+| `wrong package name`                      | `package-name` differs from the `Name` in the metadata (compared in normalized form). |
+| `invalid version`                         | The metadata version is missing or `0.0.0`. Fix the version source of the build.      |
+| `extra not defined`                       | A requested `package-extra` is not in `Provides-Extra`. Fix the extra or the input.   |
+| `py.typed marker missing`                 | Add `<module>/py.typed` to the package, or set `check-types: false`.                  |
+| `core metadata file not found`            | The archive has no `METADATA` or `PKG-INFO`. It is invalid for PyPI.                  |
+| `twine check failed`                      | Fix the metadata warnings (for example a missing `readme`).                           |
+| `dependency not installed`                | A `package-dependencies` entry is not in the installed `Requires`.                    |
+| `cannot import`                           | The installed package does not import. Check the packaged files.                      |
+| `not imported from site-packages`         | The module was imported from somewhere else than the installed package.               |
+| `type completeness check failed`          | Fix the type annotations reported by pyright, or set `check-types: false`.            |
 
-### "py.typed not found"
+## Migration from 0.0.x
 
-Add a `py.typed` file to your package source directory (e.g., `src/mypackage/py.typed`)
-if your package includes type hints.
+`v0.1.0` has breaking changes.
+
+| Change                                                                      | Migration                                                   |
+| --------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `verify-wheel-extra` and `verify-sdist-extra` are removed                   | Delete them. Remove the extra from `package-extra` instead. |
+| `module.__version__` is no longer required; the metadata version is checked | None.                                                       |
+| twine and pyright failures fail the job; they were silently skipped before  | Fix the cause, or set `check-types: false` for pyright.     |
+| `dist/` is no longer used or written in the workspace                       | Use the `wheel-path` and `sdist-path` outputs.              |
+| `WHEEL_PATH`, `SDIST_PATH` and `MODULE_NAME` are no longer exported         | Use the outputs.                                            |
+| `.venv` is no longer created in the workspace                               | Create your own environment.                                |
+| Names are compared in normalized form; the `uv pip tree` check is removed   | None.                                                       |
+| `py.typed` must be at `<module>/py.typed`, not anywhere in the archive      | Move the marker into the package.                           |
+| The build uses `uv build --no-sources`                                      | Make the build work without `[tool.uv.sources]`.            |
+| `twine check --strict`                                                      | Fix the metadata warnings.                                  |
+
+## Run the checks locally
+
+The scripts work on a wheel or an sdist you built yourself:
+
+```bash
+uv build --out-dir /tmp/dist
+bash scripts/check_dist.sh /tmp/dist/mypackage-1.0-py3-none-any.whl mypackage mypackage "all" true
+bash scripts/check_dist.sh /tmp/dist/mypackage-1.0.tar.gz mypackage mypackage "all" true
+```
+
+`check_install.sh` and `check_types.sh` need the package installed in the active environment, and
+must run outside the checkout. See the header comment of each script.
 
 ## Contributing
 

@@ -92,11 +92,11 @@ verify-uv-build-action/
 ├── .github/
 │   ├── workflows/        # GitHub Actions workflows
 │   └── dependabot.yml    # Dependabot configuration
-├── dev/
-│   └── package/          # Optional validation scripts
+├── scripts/              # Shell scripts: lib.sh, check_dist.sh, check_install.sh, check_types.sh
 ├── src/
-│   └── myproject/        # Example test package
-├── tests/                # Test files
+│   └── myproject/        # Example test package (fixture built in CI)
+├── tests/
+│   └── bats/             # Unit tests of the scripts, one file per script
 ├── action.yaml           # Main action definition
 ├── Makefile             # Development commands
 ├── pyproject.toml       # Python project configuration

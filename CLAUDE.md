@@ -5,10 +5,11 @@ Guidance for coding agents working in this repository.
 ## Repository purpose
 
 A GitHub composite action (`action.yaml`) that builds a Python package with `uv build` and verifies
-the resulting wheel and sdist: `py.typed` marker, extras defined in the metadata, package metadata
-and dependencies, dependency tree, import and version, and type completeness (pyright). The
-checks that need real logic live in `scripts/*.sh` (bash, must work on GNU/Linux and BSD/macOS) and
-are tested with [bats](https://github.com/bats-core/bats-core) in `tests/bats/`.
+the resulting wheel and sdist: name, version, `py.typed` marker and extras in the core metadata,
+`twine check`, a clean install with its direct dependencies, the import, and type completeness
+(pyright). The checks that need real logic live in `scripts/*.sh` (bash, must work on GNU/Linux and
+BSD/macOS) and are tested with [bats](https://github.com/bats-core/bats-core) in `tests/bats/`:
+`lib.sh` (shared helpers), `check_dist.sh`, `check_install.sh` and `check_types.sh`.
 
 `src/myproject/` and `pyproject.toml` are a small dummy Python package
 used as the fixture that the action builds and verifies in CI. They are not part of the action. The
