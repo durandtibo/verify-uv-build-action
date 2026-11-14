@@ -4,7 +4,6 @@
 # is released.
 
 name: Test Released Action
-
 on:
   workflow_call:
     inputs:
@@ -71,117 +70,67 @@ jobs:
           package-extra: ${{ matrix.package-extra }}
           package-dependencies: coola
 
-  #################################
-  #     Tests to check inputs     #
-  #################################
+  #####################################
+  #     Tests of failures and cases     #
+  #####################################
 
-  invalid-dist-type:
+  # Each entry optionally breaks the fixture with `setup`, runs the released action with
+  # the given inputs, and asserts that the outcome is `expect`. It mirrors the cases of
+  # ci-action.yaml that the released version supports (it has no check-types or
+  # project-path input yet).
+  test-cases:
     permissions:
       contents: read
     runs-on: ubuntu-latest
-    continue-on-error: true
     timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: invalid dist-type
+            expect: failure
+            dist-type: tar
+          - name: missing py.typed
+            expect: failure
+            setup: rm src/myproject/py.typed
+          - name: unknown extra
+            expect: failure
+            package-extra: missing
+          - name: unknown extra with the extra verification disabled
+            expect: success
+            package-extra: missing
+            verify-extra: "false"
+
+    name: ${{ matrix.name }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
 
-      - name: Call composite action with invalid value
-        id: run_action
-        uses: durandtibo/verify-uv-build-action@88da014d506b5f0b4f657d4ba8920061ab785620 # ratchet:durandtibo/verify-uv-build-action@v0.0.7
-        with:
-          dist-type: tar
-          package-name: myproject
-        continue-on-error: true
-
-      - name: Failure - it did not fail as expected
-        if: steps.run_action.outcome != 'failure'
-        run: |
-          echo "❌ Error: Step should have failed but didn't!"
-          exit 1
-
-      - name: Success - it failed as expected
-        if: steps.run_action.outcome == 'failure'
-        run: echo "✅ Test passed - step failed as expected"
-
-  missing-py-typed:
-    permissions:
-      contents: read
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    timeout-minutes: 5
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
-
-      - name: Remove py.typed
-        run: |
-          rm src/myproject/py.typed
+      - name: Break the fixture
+        if: ${{ matrix.setup != '' }}
+        env:
+          SETUP: ${{ matrix.setup }}
+        run: bash -euo pipefail -c "$SETUP"
 
       - name: Call composite action
         id: run_action
         uses: durandtibo/verify-uv-build-action@88da014d506b5f0b4f657d4ba8920061ab785620 # ratchet:durandtibo/verify-uv-build-action@v0.0.7
         with:
           package-name: myproject
+          package-extra: ${{ matrix.package-extra }}
+          dist-type: ${{ matrix.dist-type || 'wheel' }}
+          verify-wheel-extra: ${{ matrix.verify-extra || 'true' }}
+          verify-sdist-extra: ${{ matrix.verify-extra || 'true' }}
         continue-on-error: true
 
-      - name: Failure - it did not fail as expected
-        if: steps.run_action.outcome != 'failure'
+      - name: Check the outcome
+        env:
+          EXPECTED: ${{ matrix.expect }}
+          OUTCOME: ${{ steps.run_action.outcome }}
         run: |
-          echo "❌ Error: Step should have failed but didn't!"
-          exit 1
-
-      - name: Success - it failed as expected
-        if: steps.run_action.outcome == 'failure'
-        run: echo "✅ Test passed - step failed as expected"
-
-  incorrect-extra:
-    permissions:
-      contents: read
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    timeout-minutes: 5
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
-
-      - name: Call composite action
-        id: run_action
-        uses: durandtibo/verify-uv-build-action@88da014d506b5f0b4f657d4ba8920061ab785620 # ratchet:durandtibo/verify-uv-build-action@v0.0.7
-        with:
-          package-name: myproject
-          package-extra: missing
-        continue-on-error: true
-
-      - name: Failure - it did not fail as expected
-        if: steps.run_action.outcome != 'failure'
-        run: |
-          echo "❌ Error: Step should have failed but didn't!"
-          exit 1
-
-      - name: Success - it failed as expected
-        if: steps.run_action.outcome == 'failure'
-        run: echo "✅ Test passed - step failed as expected"
-
-  incorrect-extra-skip:
-    permissions:
-      contents: read
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    outputs:
-      action_failed: ${{ steps.run_action.outcome == 'failure' }}
-    timeout-minutes: 5
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
-
-      - name: Call composite action
-        id: run_action
-        uses: durandtibo/verify-uv-build-action@88da014d506b5f0b4f657d4ba8920061ab785620 # ratchet:durandtibo/verify-uv-build-action@v0.0.7
-        with:
-          package-name: myproject
-          package-extra: missing
-          verify-wheel-extra: false
-          verify-sdist-extra: false
+          set -euo pipefail
+          if [ "$OUTCOME" != "$EXPECTED" ]; then
+            echo "❌ Expected the action to end with '$EXPECTED' but got '$OUTCOME'" >&2
+            exit 1
+          fi
+          echo "✅ The action ended with '$OUTCOME' as expected"

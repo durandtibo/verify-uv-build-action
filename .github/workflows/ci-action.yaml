@@ -3,7 +3,6 @@
 # failure mode really fails (and each edge case really passes).
 
 name: Test Action
-
 on:
   workflow_call:
     inputs:

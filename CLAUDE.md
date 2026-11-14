@@ -69,12 +69,14 @@ Files are prefixed by role:
   holds no steps, only jobs that call the reusable `ci-*.yaml` workflows below.
   - `ci-format.yaml`: shell, Markdown and YAML lint/format checks.
   - `ci-shell.yaml`: bats tests on the OS matrix.
+  - `ci-shell-bash32.yaml`: bats tests on macOS with the system bash 3.2.
   - `ci-action.yaml`: runs the action from this checkout (`uses: ./`), i.e. the version not
     released yet, across the Python/OS matrix with every package extra, and checks that invalid
     inputs fail as expected.
 - `nightly.yaml`: nightly entry point (schedule and manual runs) that calls
   `nightly-test-released.yaml`, which runs the same checks as `ci-action.yaml` against the latest
-  released action. Update its pinned release when a new version is released.
+  released action (only the cases its inputs support). Update its pinned release when a new
+  version is released.
 - `ci-verify-workflows.yaml`: lints the workflow files themselves. It has its own triggers and is not
   called from `ci.yaml`, so it can be a required check.
 - `lib-get-test-matrix.yaml`, `lib-get-package-extras.yaml`: reusable workflows that load the shared

@@ -48,6 +48,15 @@ jobs:
     permissions:
       contents: read
 
+  # Run the bats unit tests of the shell scripts with the system bash 3.2 of macOS
+  shell-bash32:
+    needs: get-matrix
+    uses: ./.github/workflows/ci-shell-bash32.yaml
+    with:
+      test-matrix: ${{ needs.get-matrix.outputs.test_matrix }}
+    permissions:
+      contents: read
+
   # Test the action from the current repository code (not released yet)
   action:
     needs: get-matrix
