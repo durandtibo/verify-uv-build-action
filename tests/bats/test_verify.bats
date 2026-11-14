@@ -3,8 +3,8 @@
 bats_require_minimum_version 1.5.0
 
 # The real lib.sh, check_dist.sh and verify.sh run from a copy of scripts/ in
-# which check_install.sh and check_types.sh are stubs that record how they are
-# called. uv and uvx are mocked on PATH: `uv build` writes small archives.
+# which check_install.sh and check_types.sh define stub functions that record
+# how they are called. uv and uvx are mocked on PATH: `uv build` writes small archives.
 
 setup() {
 	WORK="$(mktemp -d)"
@@ -14,10 +14,11 @@ setup() {
 	touch "${WORK}/proj/pyproject.toml"
 
 	for name in check_install check_types; do
-		cat >"${WORK}/scripts/${name}.sh" <<'STUB'
-#!/usr/bin/env bash
-echo "cwd=${PWD} venv=${VIRTUAL_ENV:-} pyright=${PYRIGHT_VERSION:-} args=$*" >>"${CALLS}/$(basename "$0" .sh)"
-exit "${STUB_STATUS:-0}"
+		cat >"${WORK}/scripts/${name}.sh" <<STUB
+${name}() {
+	echo "args=\$*" >>"\${CALLS}/${name}"
+	return "\${STUB_STATUS:-0}"
+}
 STUB
 	done
 
@@ -44,7 +45,7 @@ venv)
 	mkdir -p "$2/bin"
 	;;
 pip)
-	echo "cwd=${PWD} venv=${VIRTUAL_ENV:-} args=$*" >>"${CALLS}/uv_install"
+	echo "args=$*" >>"${CALLS}/uv_install"
 	;;
 esac
 exit "${UV_STATUS:-0}"
@@ -204,11 +205,10 @@ count() {
 }
 
 @test "the install targets the venv explicitly, not through VIRTUAL_ENV (regression H1)" {
-	run bash "${VERIFY}"
+	VIRTUAL_ENV=/somewhere/else run bash "${VERIFY}"
 	[ "$status" -eq 0 ]
 	while IFS= read -r line; do
 		[[ "${line}" == *"--python ${WORK}/runner/verify-uv-build."*"/venv-"* ]]
-		[[ "${line}" == *"venv="" "* ]]
 	done <"${CALLS}/uv_install"
 }
 
@@ -289,8 +289,7 @@ count() {
 
 @test "check_install receives the package, module, dependencies and wheel version" {
 	MODULE_NAME=mod CHECK_TYPES=false PACKAGE_DEPENDENCIES="a,b" WHEEL_VERSION=1.5 SDIST_VERSION=1.5 DIST_TYPE=wheel run bash "${VERIFY}"
-	grep -Fq "args=myproject mod a,b 1.5" "${CALLS}/check_install"
-	grep -Fq "cwd=${WORK}/runner/verify-uv-build." "${CALLS}/check_install"
+	grep -Fq "venv-wheel myproject mod a,b 1.5" "${CALLS}/check_install"
 }
 
 @test "a failing check_install exits 1 and skips the type check" {
@@ -302,9 +301,7 @@ count() {
 @test "types are checked once, on the wheel, when both are installed" {
 	PYRIGHT_VERSION=1.2.3 run bash "${VERIFY}"
 	[ "$(count check_types)" -eq 1 ]
-	grep -Fq "venv-wheel" "${CALLS}/check_types"
-	grep -Fq "pyright=1.2.3" "${CALLS}/check_types"
-	grep -Fq "args=myproject" "${CALLS}/check_types"
+	grep -Fq "venv-wheel myproject  1.2.3" "${CALLS}/check_types"
 }
 
 @test "types are checked on the sdist when only the sdist is installed" {
