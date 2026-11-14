@@ -1,10 +1,6 @@
 # Workflow testing the action from the current repository code (uses: ./)
 # across the Python/OS matrix, with every package extra, and checks that each
 # failure mode really fails (and each edge case really passes).
-#
-# nightly-test-released.yaml mirrors this file for the last release, and
-# tests/bats/test_workflow_mirror.bats keeps the two aligned. The jobs that test
-# a feature the last release does not have yet are listed in that test.
 
 name: Test Action
 on:
@@ -89,7 +85,7 @@ jobs:
 
       - name: Load the cases
         id: load
-        run: echo "cases=$(scripts/load-cases.sh all)" >> "$GITHUB_OUTPUT"
+        run: echo "cases=$(jq -c . tests/cases.json)" >> "$GITHUB_OUTPUT"
 
   # Each case optionally breaks the fixture with `setup`, runs the action with
   # the given inputs, and asserts that the outcome is `expect`.
