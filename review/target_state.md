@@ -104,7 +104,7 @@ clean (P9) and stale files cannot exist (F2).
 | --- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | 1   | Validate inputs   | `dist-type` in `{wheel, sdist}`, `check-types` in `{true, false}`, `project-path/pyproject.toml` exists, `package-name` is a valid distribution name.                                                                              | any invalid input                                                   |
 | 2   | Set up uv         | `astral-sh/setup-uv` with `python-version`, **without** `activate-environment`. Cache on.                                                                                                                                          | setup failure                                                       |
-| 3   | Build             | `uv build "$PROJECT_PATH" --out-dir "$RUNNER_TEMP/.../dist"` into a fresh directory. Exactly one wheel and one sdist must exist. Sets outputs.                                                                                      | build error, 0 or >1 wheel/sdist                                    |
+| 3   | Build             | `uv build "$PROJECT_PATH" --no-sources --out-dir "$RUNNER_TEMP/.../dist"` into a fresh directory. Exactly one wheel and one sdist must exist. Sets outputs.                                                                                      | build error, 0 or >1 wheel/sdist                                    |
 | 4   | Check artifacts   | `check_dist.sh`, on **both** archives, before any install: name matches `package-name`, version is not `0.0.0`, `<module>/py.typed` present (if `check-types`), every requested extra is in `Provides-Extra`, `uvx twine check --strict`. | any mismatch (each reported)                                        |
 | 5   | Install           | `uv venv` in `$RUNNER_TEMP`, then `uv pip install "<selected artifact>[extras]"` with `VIRTUAL_ENV` exported for the following steps of the action only (set in each step's `env:`, not `$GITHUB_ENV`).                            | install error                                                       |
 | 6   | Check install     | `check_install.sh`, run from `$RUNNER_TEMP` (F1): distribution is installed, normalized name and version match the wheel metadata, each `package-dependencies` entry is in the installed `Requires`, module imports and file comes from `site-packages`. | not installed, missing dependency, import error, import from source |
@@ -129,9 +129,11 @@ Behaviour decisions:
   `durandtibo/build-pypi-package-action` (`twine-version`). Defaults are bumped in their own PR
   (for example quarterly), and the nightly run is the signal that a bump is due. Optional later:
   a `twine-exclude-newer`-style input for reproducible dependency resolution.
-- **`--no-sources`**: not used by default. Documented as the next candidate, because it checks that
-  the build does not depend on `[tool.uv.sources]`, but it breaks legitimate setups. Decision in
-  section 6.
+- **`--no-sources` is always on** (P1, P2). The build ignores `[tool.uv.sources]`, so it resolves
+  build requirements and dependencies the way a user installing from PyPI does. A project that only
+  builds thanks to a local or git source fails here, which is a real publishing bug. There is no
+  input to disable it (P4). Trade-off: a project that legitimately needs sources to build cannot
+  use the action. If that case shows up, add an opt-out input then.
 
 ### 3.4 Scripts
 
@@ -267,6 +269,7 @@ still change.
 | `.venv` is no longer created in the workspace                        | callers that reused it                   | Create their own environment                                       |
 | Dependency names compared in normalized form, `uv pip tree` check removed | none (less strict on spelling, same coverage) | none                                                           |
 | Stricter `py.typed` path (`<module>/py.typed`)                       | packages that ship the marker elsewhere  | Move it into the package (required by PEP 561 anyway)             |
+| `uv build --no-sources` (ignores `[tool.uv.sources]`)                | projects that only build with a local or git source | Make the build work without sources (it must for PyPI users)       |
 | `twine check --strict`                                               | packages with metadata warnings          | Fix the warnings                                                   |
 
 ## 5. Deliberately left alone
@@ -283,9 +286,9 @@ still change.
 
 ## 6. Open decisions
 
-1. **`--no-sources`**: recommend adding it behind a `build-args`-style opt-in later, not in v0.1.0.
-2. **Single `check_dist.sh` vs two scripts** (wheel, sdist): recommend a single script, since the
-   only difference is how the metadata file is read (one `case` on the extension).
+None. Previous questions are settled: `--no-sources` is always on (3.3), a single
+`check_dist.sh` handles both artifacts (3.4), tool versions are pinned inputs (3.1, 3.3), and
+Windows is out of scope (P8).
 
 ## 7. Implementation order
 
