@@ -1,6 +1,7 @@
 # verify-uv-build-action: target state
 
-Status: proposal. Nothing in this document is implemented yet. Breaking changes are accepted.
+Status: proposal, decisions settled (section 6). Nothing here is implemented yet.
+Release: `v0.1.0`. Breaking changes are accepted. Windows is out of scope.
 Basis: review of `action.yaml`, `scripts/*.sh`, `tests/bats/`, `README.md`, `CLAUDE.md` and the
 workflows at commit `b54e7c9`.
 
@@ -105,10 +106,10 @@ clean (P9) and stale files cannot exist (F2).
 | 1   | Validate inputs   | `dist-type` in `{wheel, sdist}`, `check-types` in `{true, false}`, `project-path/pyproject.toml` exists, `package-name` is a valid distribution name.                                                                              | any invalid input                                                   |
 | 2   | Set up uv         | `astral-sh/setup-uv` with `python-version`, **without** `activate-environment`. Cache on.                                                                                                                                          | setup failure                                                       |
 | 3   | Build             | `uv build "$PROJECT_PATH" --no-sources --out-dir "$RUNNER_TEMP/.../dist"` into a fresh directory. Exactly one wheel and one sdist must exist. Sets outputs.                                                                                      | build error, 0 or >1 wheel/sdist                                    |
-| 4   | Check artifacts   | `check_dist.sh`, on **both** archives, before any install: name matches `package-name`, version is not `0.0.0`, `<module>/py.typed` present (if `check-types`), every requested extra is in `Provides-Extra`, `uvx twine check --strict`. | any mismatch (each reported)                                        |
+| 4   | Check artifacts   | `check_dist.sh`, on **both** archives, before any install: name matches `package-name`, version is not `0.0.0`, `<module>/py.typed` present (if `check-types`), every requested extra is in `Provides-Extra`. Then, once for both files, `uvx twine@"$TWINE_VERSION" check --strict`. | any mismatch (each reported), twine error or twine cannot run       |
 | 5   | Install           | `uv venv` in `$RUNNER_TEMP`, then `uv pip install "<selected artifact>[extras]"` with `VIRTUAL_ENV` exported for the following steps of the action only (set in each step's `env:`, not `$GITHUB_ENV`).                            | install error                                                       |
 | 6   | Check install     | `check_install.sh`, run from `$RUNNER_TEMP` (F1): distribution is installed, normalized name and version match the wheel metadata, each `package-dependencies` entry is in the installed `Requires`, module imports and file comes from `site-packages`. | not installed, missing dependency, import error, import from source |
-| 7   | Check types       | Only if `check-types`: `uvx pyright --pythonpath "$VIRTUAL_ENV/bin/python" --verifytypes "$MODULE" --ignoreexternal`, run from `$RUNNER_TEMP`. Not installed into the venv.                                                       | type completeness errors, pyright cannot run (P3)                   |
+| 7   | Check types       | Only if `check-types`: `uvx pyright@"$PYRIGHT_VERSION" --pythonpath "$VIRTUAL_ENV/bin/python" --verifytypes "$MODULE" --ignoreexternal`, run from `$RUNNER_TEMP`. Not installed into the venv.                                                       | type completeness errors, pyright cannot run (P3)                   |
 | +   | Show artifacts    | `if: always()`. Collapsed `::group::` listing of the wheel and sdist contents.                                                                                                                                                    | never                                                               |
 
 Order is fail-fast: input errors, then cheap archive checks (milliseconds), then install, then
@@ -145,7 +146,7 @@ Sourceable (main guarded by `BASH_SOURCE`), one test file each (`CLAUDE.md` rule
 | `scripts/lib.sh`      | duplicated helpers in all 5 scripts                                        | `log_ok`, `log_error` (writes `❌ ...` to stderr), `die`, `normalize_name` (PEP 503/685, via `tr`), `split_csv` (trim, drop empties, normalize), `group_start`/`group_end`. No ANSI colour codes (P10).             |
 | `scripts/check_dist.sh` `<archive> <package-name> <module-name> <extras> <check-types>` | `verify_wheel_extras.sh`, `verify_sdist_extras.sh`, both `py.typed` steps | Works on one archive of either kind. Reads the core metadata file (`*.dist-info/METADATA` in a wheel, root `PKG-INFO` in an sdist) with `unzip -p` / `tar -xzOf`, then checks name, version, `Provides-Extra`, and the `py.typed` path. No temp files. |
 | `scripts/check_install.sh` `<package-name> <module-name> <dependencies>` | `check_metadata.sh`, `check_dependency_tree.sh`, the inline import step     | One `uv pip show` call. Checks name, version, `Requires`, then imports the module with `python -c 'import importlib,sys; ...' "$MODULE"` (module passed as `argv`, F6) and prints its file.                  |
-| `scripts/check_types.sh` `<module-name>` | `check_type.sh` (renamed for consistent plural, same job)                  | `uvx pyright --verifytypes`, with the interpreter of the active environment.                                                                                                                              |
+| `scripts/check_types.sh` `<module-name>` (env `PYRIGHT_VERSION`) | `check_type.sh` (renamed for consistent plural, same job)                  | Runs `uvx pyright@<version> --verifytypes` with the interpreter of the active environment. The pyright version is read from `PYRIGHT_VERSION` (set from the `pyright-version` input). |
 
 Common contract (P10): exit `0` ok, `1` a check failed, `2` bad usage. Each failure prints a single
 `❌ <what> (expected <x>, got <y>)` line. Multiple failures in one run are all reported before the
@@ -201,7 +202,8 @@ Bats (unit, per script, small throwaway archives built in a temp dir, no network
   name with `_` vs `-` (regression F8); version `1.0+local` (regression F8); missing dependency;
   dependency with `_`/`-` mismatch; module imported from outside site-packages (regression F1);
   import error.
-- `test_check_types.bats`: `uvx` mocked. Success; pyright failure; missing argument -> exit 2.
+- `test_check_types.bats`: `uvx` mocked. Success; pyright failure; the pinned version is passed to
+  `uvx`; missing argument -> exit 2.
 
 Integration (`ci-action.yaml`, the existing `uses: ./` approach, P12):
 
@@ -214,6 +216,8 @@ Integration (`ci-action.yaml`, the existing `uses: ./` approach, P12):
   `package-name`, stale `dist/` directory present in the checkout (must be ignored and must pass:
   regression F2), flat layout importing from source (must fail: regression F1).
 - `test-no-types`: `check-types: false` with `py.typed` removed must pass.
+- `test-tool-versions`: `twine-version` and `pyright-version` set to explicit versions must pass
+  (checks that the inputs are wired to `uvx`).
 - `test-project-path`: the fixture copied to `sub/dir`, built with `project-path`.
 
 Fixture: keep `src/myproject/`, `pyproject.toml`. Delete `tests/package_checks.py` and
@@ -260,7 +264,6 @@ still change.
 | Change                                                               | Who is affected                          | Migration                                                          |
 | -------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------ |
 | `verify-wheel-extra`, `verify-sdist-extra` removed                   | callers that set them to `false`         | Delete the inputs. Remove the extra from `package-extra` instead. |
-| `py.typed` and pyright can be disabled with `check-types: false`     | none (new input, default keeps behaviour) | none                                                               |
 | `module.__version__` is no longer required, metadata version is used | none, only less strict                   | none                                                               |
 | `__version__ == 0.0.0` check moved to metadata                       | projects that report `0.0.0` in metadata | Fix packaging (it is a real bug)                                   |
 | twine and pyright failures now fail the job                          | projects that relied on the silent skip  | Fix the cause, or set `check-types: false`                         |
@@ -284,11 +287,17 @@ still change.
 - Workflow file layout and naming, Makefile and `.make/`, bot workflows, security workflows.
 - No new floating tags (`CLAUDE.md`).
 
-## 6. Open decisions
+## 6. Decisions
 
-None. Previous questions are settled: `--no-sources` is always on (3.3), a single
-`check_dist.sh` handles both artifacts (3.4), tool versions are pinned inputs (3.1, 3.3), and
-Windows is out of scope (P8).
+| #   | Decision                                                                     | Reason                                                                                                           |
+| --- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| D1  | Windows is out of scope. Supported: Linux and macOS runners (P8).            | Bash scripts and GNU/BSD portability are the supported surface. No Windows CI job.                               |
+| D2  | First release is `v0.1.0`. The project stays in 0.x.                         | The API may still change. Exact tag only, no floating tag.                                                        |
+| D3  | `twine` and `pyright` are pinned, with `twine-version` and `pyright-version` inputs (3.1, 3.3). | An upstream release cannot turn caller CI red, and callers can override. Same pattern as `build-pypi-package-action`. |
+| D4  | `uv build --no-sources` is always on, with no opt-out input (3.3).           | Verifies the build as a PyPI user gets it. An opt-out is added only if a real need appears (P4).                 |
+| D5  | A single `check_dist.sh` handles wheel and sdist (3.4).                      | The only difference is how the core metadata file is read (one `case` on the file extension).                    |
+
+No open decisions remain.
 
 ## 7. Implementation order
 
@@ -314,7 +323,8 @@ action works at every step. PR 4 is the only one that breaks the public API.
 The target state is reached when:
 
 - All properties P1 to P12 hold, each backed by a test or a CI job listed in 3.6.
-- `action.yaml` has 7 checks steps plus the artifact listing, and no step interpolates an input.
+- All decisions D1 to D5 are reflected in `action.yaml`, the scripts and the README.
+- `action.yaml` has 7 check steps plus the artifact listing, and no step interpolates an input.
 - `scripts/` holds `lib.sh`, `check_dist.sh`, `check_install.sh`, `check_types.sh`, about 350 lines.
 - Each regression case F1 to F11 has a test that fails on the old behaviour.
 - The README, `action.yaml` and `CLAUDE.md` describe the same inputs and outputs.
