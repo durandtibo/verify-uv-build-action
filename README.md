@@ -31,6 +31,20 @@ environment if the install needs a custom index). A check that cannot run is a f
 skip. Artifacts and the virtual environments live in `$RUNNER_TEMP`: the workspace is not modified
 and no environment variable is exported to later steps. Only Linux and macOS runners are supported.
 
+## Phases
+
+`scripts/verify.sh` runs six phases, each in a collapsed log group, and stops at the first phase
+that fails. Every failure of a phase is reported before it stops.
+
+| #   | Phase          | What it does                                                                       |
+| --- | -------------- | ---------------------------------------------------------------------------------- |
+| 1   | Validate       | Checks every input (exit 2 with all errors).                                       |
+| 2   | Build          | `uv build --no-sources` into a new directory, one wheel and one sdist expected.    |
+| 3   | Check archives | Metadata of both archives, same version, `twine check --strict`.                   |
+| 4   | Install        | Installs the wheel and/or the sdist (`dist-type`) in a venv outside the workspace. |
+| 5   | Check install  | Name, version, dependencies and import of each installed artifact.                 |
+| 6   | Check types    | `pyright --verifytypes` on the first installed artifact (if `check-types`).        |
+
 ## Quick start
 
 ```yaml
@@ -42,11 +56,17 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # only needed when the version comes from VCS tags
       - uses: durandtibo/verify-uv-build-action@v0.1.0
         with:
           package-name: mypackage
 ```
+
+Projects that derive the version from VCS tags (`hatch-vcs`, `setuptools-scm`) need
+`fetch-depth: 0`: with the default shallow checkout they build a development version. Only the
+`0.0.0` placeholder is detected as an invalid version.
 
 Releases are immutable exact version tags. There are no floating tags such as `v0` or `latest`.
 For a stronger guarantee, pin the commit SHA of the release:
@@ -63,7 +83,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: durandtibo/verify-uv-build-action@v0.1.0
         with:
           package-name: mypackage
@@ -125,27 +145,31 @@ jobs:
 Each failure prints one `❌` line that says what was expected and what was found. Details are in
 the collapsed log groups.
 
-| Message starts with                       | Cause and fix                                                                          |
-| ----------------------------------------- | -------------------------------------------------------------------------------------- |
-| `Input 'dist-type' must be`               | Use exactly `wheel`, `sdist` or `both`.                                                |
-| `Input 'module-name' must be`             | Use a dotted Python identifier, for example `my_package.sub`.                          |
-| `Input 'twine-version' must be`           | Use `latest` or a version such as `7.0.0` (same for `pyright-version`).                |
-| `Input 'check-types' must be`             | Use exactly `true` or `false`.                                                         |
-| `No pyproject.toml found in project-path` | Fix `project-path`, it must contain `pyproject.toml`.                                  |
-| `Input 'package-name' is not a valid`     | Use the distribution name, for example `my-package`.                                   |
-| `Expected exactly 1 wheel` / `1 sdist`    | The build produced no artifact or several. Check the build backend configuration.      |
-| `wrong package name`                      | `package-name` differs from the `Name` in the metadata (compared in normalized form).  |
-| `wheel and sdist have different versions` | Fix the version source so that both artifacts report the same version.                 |
-| `invalid version`                         | The metadata version is missing or `0.0.0`. Fix the version source of the build.       |
-| `extra not defined`                       | A requested `package-extra` is not in `Provides-Extra`. Fix the extra or the input.    |
-| `py.typed marker missing`                 | Add `<module>/py.typed` to the package, or set `check-types: false`.                   |
-| `core metadata file not found`            | The archive has no `METADATA` or `PKG-INFO`. It is invalid for PyPI.                   |
-| `twine check failed`                      | Fix the metadata warnings (for example a missing `readme`).                            |
-| `Installation of the wheel failed`        | The artifact does not install. Check its dependencies, or set a `UV_*` index variable. |
-| `dependency not installed`                | A `package-dependencies` entry is not in the installed `Requires`.                     |
-| `cannot import`                           | The installed package does not import. Check the packaged files.                       |
-| `not imported from site-packages`         | The module was imported from somewhere else than the installed package.                |
-| `type completeness check failed`          | Fix the type annotations reported by pyright, or set `check-types: false`.             |
+| Message starts with                                     | Cause and fix                                                                          |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `Input 'dist-type' must be`                             | Use exactly `wheel`, `sdist` or `both`.                                                |
+| `Input 'module-name' must be`                           | Use a dotted Python identifier, for example `my_package.sub`.                          |
+| `Input 'twine-version' must be`                         | Use `latest` or a version such as `7.0.0` (same for `pyright-version`).                |
+| `Input 'check-types' must be`                           | Use exactly `true` or `false`.                                                         |
+| `No pyproject.toml found in project-path`               | Fix `project-path`, it must contain `pyproject.toml`.                                  |
+| `Input 'package-name' is not a valid`                   | Use the distribution name, for example `my-package`.                                   |
+| `uv build failed`                                       | The build failed, see the output of `uv build` above the message.                      |
+| `Expected exactly 1 wheel` / `1 sdist`                  | The build produced no artifact or several. Check the build backend configuration.      |
+| `wrong package name`                                    | `package-name` differs from the `Name` in the metadata (compared in normalized form).  |
+| `wheel and sdist have different versions`               | Fix the version source so that both artifacts report the same version.                 |
+| `invalid version`                                       | The metadata version is missing or `0.0.0`. Fix the version source of the build.       |
+| `extra not defined`                                     | A requested `package-extra` is not in `Provides-Extra`. Fix the extra or the input.    |
+| `py.typed marker missing`                               | Add `<module>/py.typed` to the package, or set `check-types: false`.                   |
+| `core metadata file not found`                          | The archive has no `METADATA` or `PKG-INFO`. It is invalid for PyPI.                   |
+| `twine check failed`                                    | Fix the metadata warnings (for example a missing `readme`).                            |
+| `Installation of the`                                   | The artifact does not install. Check its dependencies, or set a `UV_*` index variable. |
+| `package not installed`                                 | The install succeeded but the package is not in the environment. Check `package-name`. |
+| `wrong installed package name`                          | The installed name differs from `package-name`.                                        |
+| `wrong installed version` / `invalid installed version` | The installed version differs from the built wheel, or is invalid.                     |
+| `dependency not installed`                              | A `package-dependencies` entry is not in the installed `Requires`.                     |
+| `cannot import`                                         | The installed package does not import. Check the packaged files.                       |
+| `not imported from site-packages`                       | The module was imported from somewhere else than the installed package.                |
+| `type completeness check failed`                        | Fix the type annotations reported by pyright, or set `check-types: false`.             |
 
 ## Migration from 0.0.x
 
