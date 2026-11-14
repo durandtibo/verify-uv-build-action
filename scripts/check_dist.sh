@@ -25,6 +25,7 @@
 #       and "." replaced by "_" (a dot means a sub-package: a.b -> a/b/py.typed).
 #       extras is a comma-separated list. check_types is "true" (default) or
 #       "false": whether py.typed is required in a wheel (ignored for an sdist)
+#   read_field <archive> <Header> - print a header of the core metadata
 #   read_version <archive> - print the Version of the core metadata
 #
 # Return Codes:
@@ -81,13 +82,20 @@ has_py_typed() {
 	grep -Eq "^${module_path}/py\.typed\$" <<<"${entries}"
 }
 
+# Print the first value of a core metadata header of the archive, fail if the
+# metadata cannot be read or the header is missing.
+# Usage: read_field <archive> <Header-Name>
+read_field() {
+	local metadata value
+	metadata="$(read_metadata "$1")" || return 1
+	value="$(metadata_values "${metadata}" "$2" | sed -n 1p)"
+	[ -n "${value}" ] || return 1
+	echo "${value}"
+}
+
 # Print the version of the archive, fail if it cannot be read.
 read_version() {
-	local metadata version
-	metadata="$(read_metadata "$1")" || return 1
-	version="$(metadata_values "${metadata}" "Version" | sed -n 1p)"
-	[ -n "${version}" ] || return 1
-	echo "${version}"
+	read_field "$1" Version
 }
 
 # Verify an archive. Prints one error line per failed check, returns 1 if any.

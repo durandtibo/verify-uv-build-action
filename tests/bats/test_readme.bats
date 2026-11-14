@@ -76,7 +76,7 @@ readme_default() {
 
 @test "every outputs of action.yaml is in the README outputs table" {
 	local name
-	for name in wheel-path sdist-path version; do
+	for name in wheel-path sdist-path dist-dir version; do
 		grep -q "^| \`${name}\`" README.md
 		grep -q "^  ${name}:" action.yaml
 	done

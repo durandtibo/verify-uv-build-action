@@ -87,7 +87,7 @@ FAKE
 	export PACKAGE_NAME="myproject"
 	export PROJECT_PATH="${WORK}/proj"
 	export RUNNER_TEMP="${WORK}/runner"
-	unset GITHUB_OUTPUT GITHUB_ACTIONS MODULE_NAME PACKAGE_EXTRA PACKAGE_DEPENDENCIES \
+	unset GITHUB_OUTPUT GITHUB_ACTIONS MODULE_NAME PACKAGE_EXTRAS PACKAGE_DEPENDENCIES \
 		DIST_TYPE TWINE_VERSION PYRIGHT_VERSION CHECK_TYPES
 	VERIFY="${WORK}/scripts/verify.sh"
 }
@@ -245,13 +245,13 @@ count() {
 }
 
 @test "extras are installed through a direct reference" {
-	PACKAGE_EXTRA="all" DIST_TYPE=wheel run bash "${VERIFY}"
+	PACKAGE_EXTRAS="all" DIST_TYPE=wheel run bash "${VERIFY}"
 	[ "$status" -eq 0 ]
 	grep -Fq "myproject[all] @ file://" "${CALLS}/uv_install"
 }
 
 @test "an unknown extra fails before any install" {
-	PACKAGE_EXTRA="missing" run --separate-stderr bash "${VERIFY}"
+	PACKAGE_EXTRAS="missing" run --separate-stderr bash "${VERIFY}"
 	[ "$status" -eq 1 ]
 	[[ "$stderr" == *"extra not defined"* ]]
 	[ "$(count uv_install)" -eq 0 ]

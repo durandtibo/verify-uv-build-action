@@ -22,7 +22,7 @@ jobs:
   get-extras:
     permissions:
       contents: read
-    uses: ./.github/workflows/lib-get-package-extras.yaml
+    uses: ./.github/workflows/lib-get-package-extrass.yaml
     with:
       extra-values: '[""]'
 
@@ -58,7 +58,7 @@ jobs:
       max-parallel: 8
       fail-fast: false
       matrix:
-        package-extra: ${{ fromJson(needs.get-extras.outputs.extras) }}
+        package-extras: ${{ fromJson(needs.get-extras.outputs.extras) }}
 
     steps:
       - name: Checkout
@@ -68,7 +68,7 @@ jobs:
         uses: ./
         with:
           package-name: myproject
-          package-extra: ${{ matrix.package-extra }}
+          package-extras: ${{ matrix.package-extras }}
           package-dependencies: coola
 
   #####################################
@@ -121,7 +121,7 @@ jobs:
         with:
           package-name: ${{ matrix.package-name || 'myproject' }}
           module-name: ${{ matrix.module-name }}
-          package-extra: ${{ matrix.package-extra }}
+          package-extras: ${{ matrix.package-extras }}
           package-dependencies: ${{ matrix.package-dependencies }}
           dist-type: ${{ matrix.dist-type || 'both' }}
           check-types: ${{ matrix.check-types || 'true' }}

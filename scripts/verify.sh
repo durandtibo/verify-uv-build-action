@@ -25,12 +25,13 @@
 #   exist even when a later phase fails.
 #
 # Usage:
-#   PACKAGE_NAME=<name> [VAR=value ...] bash scripts/verify.sh
+#   [PACKAGE_NAME=<name>] [VAR=value ...] bash scripts/verify.sh
 #
 # Environment (the inputs of the action, in upper case with "_"):
-#   PACKAGE_NAME          Distribution name (required)
+#   PACKAGE_NAME          Distribution name. Default: read from the built
+#                         wheel. When set, it must match the wheel
 #   MODULE_NAME           Import name. Default: derived from PACKAGE_NAME
-#   PACKAGE_EXTRA         Comma-separated extras to install and verify
+#   PACKAGE_EXTRAS         Comma-separated extras to install and verify
 #   PACKAGE_DEPENDENCIES  Comma-separated direct dependencies that must be
 #                         installed
 #   DIST_TYPE             wheel, sdist or both. Default: see action.yaml
@@ -41,14 +42,15 @@
 
 #   CHECK_TYPES           true or false. Default: true
 #   RUNNER_TEMP           Parent of the work directory. Default: TMPDIR or /tmp
-#   GITHUB_OUTPUT         When set, wheel-path, sdist-path and version are
-#                         appended to it
+#   GITHUB_OUTPUT         When set, wheel-path, sdist-path, dist-dir and
+#                         version are appended to it
 #   GITHUB_STEP_SUMMARY   When set, the verdict, a table of the phases and the
 #                         content of the archives are appended to it
 #
 # Examples:
+#   bash scripts/verify.sh
 #   PACKAGE_NAME=mypkg bash scripts/verify.sh
-#   PACKAGE_NAME=mypkg DIST_TYPE=wheel PACKAGE_EXTRA=all bash scripts/verify.sh
+#   PACKAGE_NAME=mypkg DIST_TYPE=wheel PACKAGE_EXTRAS=all bash scripts/verify.sh
 #
 # Requirements:
 #   uv (uv, uvx) in PATH, with network access
@@ -73,21 +75,22 @@ source "${SCRIPT_DIR}/check_types.sh"
 # Fill the optional inputs that are unset or empty with their default: the
 # default of action.yaml, or for the tools the pin of requirements.txt.
 apply_defaults() {
+	PACKAGE_NAME="${PACKAGE_NAME:-}"
 	PROJECT_PATH="${PROJECT_PATH:-$(action_default project-path)}"
 	DIST_TYPE="${DIST_TYPE:-$(action_default dist-type)}"
 	CHECK_TYPES="${CHECK_TYPES:-$(action_default check-types)}"
 	TWINE_VERSION="${TWINE_VERSION:-$(tool_pin twine)}"
 	PYRIGHT_VERSION="${PYRIGHT_VERSION:-$(tool_pin pyright)}"
 	MODULE_NAME="${MODULE_NAME:-}"
-	PACKAGE_EXTRA="${PACKAGE_EXTRA:-}"
+	PACKAGE_EXTRAS="${PACKAGE_EXTRAS:-}"
 	PACKAGE_DEPENDENCIES="${PACKAGE_DEPENDENCIES:-}"
 }
 
 # Check all inputs. Reports every invalid input, returns 1 if any.
 validate_inputs() {
 	local failures=0
-	if [[ ! "${PACKAGE_NAME:-}" =~ ^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$ ]]; then
-		log_error "Input 'package-name' is not a valid distribution name (got '${PACKAGE_NAME:-}')"
+	if [ -n "${PACKAGE_NAME}" ] && [[ ! "${PACKAGE_NAME}" =~ ^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$ ]]; then
+		log_error "Input 'package-name' is not a valid distribution name (got '${PACKAGE_NAME}')"
 		failures=$((failures + 1))
 	fi
 	if [ -n "${MODULE_NAME}" ] && ! is_dotted_identifier "${MODULE_NAME}"; then
@@ -132,7 +135,8 @@ selected_types() {
 	esac
 }
 
-# Build the package into ${WORK}/dist and set WHEEL_PATH, SDIST_PATH, VERSION.
+# Build the package into ${WORK}/dist and set WHEEL_PATH, SDIST_PATH, VERSION
+# and, when PACKAGE_NAME is empty, PACKAGE_NAME (read from the wheel).
 build_dists() {
 	local dist_dir="${WORK}/dist"
 	local wheels sdists
@@ -163,10 +167,18 @@ build_dists() {
 		log_error "No Version found in the wheel metadata (expected a Version header in ${WHEEL_PATH})"
 		return 1
 	fi
+	if [ -z "${PACKAGE_NAME}" ]; then
+		if ! PACKAGE_NAME="$(read_field "${WHEEL_PATH}" Name)"; then
+			log_error "No Name found in the wheel metadata (expected a Name header in ${WHEEL_PATH})"
+			return 1
+		fi
+		echo "📛 package-name not set: using ${PACKAGE_NAME} from the wheel"
+	fi
 	if [ -n "${GITHUB_OUTPUT:-}" ]; then
 		{
 			echo "wheel-path=${WHEEL_PATH}"
 			echo "sdist-path=${SDIST_PATH}"
+			echo "dist-dir=${dist_dir}"
 			echo "version=${VERSION}"
 		} >>"${GITHUB_OUTPUT}"
 	fi
@@ -177,10 +189,10 @@ build_dists() {
 check_archives() {
 	local status=0 sdist_version
 	check_dist "${WHEEL_PATH}" "${PACKAGE_NAME}" "${MODULE_NAME}" \
-		"${PACKAGE_EXTRA}" "${CHECK_TYPES}" || status=1
+		"${PACKAGE_EXTRAS}" "${CHECK_TYPES}" || status=1
 	# The wheel is built from the sdist: the marker is only checked in the wheel.
 	check_dist "${SDIST_PATH}" "${PACKAGE_NAME}" "${MODULE_NAME}" \
-		"${PACKAGE_EXTRA}" false || status=1
+		"${PACKAGE_EXTRAS}" false || status=1
 	if sdist_version="$(read_version "${SDIST_PATH}")" && [ "${sdist_version}" != "${VERSION}" ]; then
 		log_error "wheel and sdist have different versions (expected ${VERSION}, got ${sdist_version} in ${SDIST_PATH##*/})"
 		status=1
@@ -204,7 +216,7 @@ install_dist() {
 	wheel) target="${WHEEL_PATH}" ;;
 	*) target="${SDIST_PATH}" ;;
 	esac
-	extras="${PACKAGE_EXTRA// /}"
+	extras="${PACKAGE_EXTRAS// /}"
 	if [ -n "${extras}" ]; then
 		# A direct reference, because "<absolute path>[extra]" is not parsed by uv.
 		target="${PACKAGE_NAME}[${extras}] @ file://${target}"
