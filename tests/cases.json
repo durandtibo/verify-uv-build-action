@@ -1,0 +1,43 @@
+[
+  {"name": "invalid dist-type", "expect": "failure", "dist-type": "tar", "released": true},
+  {"name": "invalid check-types", "expect": "failure", "check-types": "maybe"},
+  {"name": "missing project-path", "expect": "failure", "project-path": "does/not/exist"},
+  {"name": "invalid package-name", "expect": "failure", "package-name": "my project"},
+  {"name": "missing py.typed", "expect": "failure", "setup": "rm src/myproject/py.typed", "released": true},
+  {"name": "unknown extra", "expect": "failure", "package-extra": "missing", "released": true},
+  {"name": "missing dependency", "expect": "failure", "package-dependencies": "not-a-dependency"},
+  {"name": "wrong package-name", "expect": "failure", "package-name": "other-project"},
+  {"name": "wrong module-name", "expect": "failure", "module-name": "other_module"},
+  {
+    "name": "flat layout imports from source",
+    "comment": "Regression F1: a copy of the module in the checkout must not hide a wheel that does not contain it.",
+    "expect": "failure",
+    "check-types": "false",
+    "setup": "cp -r src/myproject myproject\nprintf '\\n[tool.hatch.build.targets.wheel]\\nonly-include = [\"README.md\"]\\n' >> pyproject.toml"
+  },
+  {"name": "version is the placeholder", "expect": "failure", "setup": "sed -i 's/^version = .*/version = \"0.0.0\"/' pyproject.toml"},
+  {"name": "twine rejects the metadata", "expect": "failure", "setup": "sed -i '/^readme = /d' pyproject.toml"},
+  {"name": "pyright reports incompleteness", "expect": "failure", "setup": "printf '\\n\\ndef untyped(x):\\n    return x\\n' >> src/myproject/module.py"},
+  {
+    "name": "stale dist directory",
+    "comment": "Regression F2: a stale dist/ in the checkout must be ignored.",
+    "expect": "success",
+    "setup": "mkdir dist\necho \"not a wheel\" > dist/myproject-0.0.0-py3-none-any.whl\necho \"not an sdist\" > dist/myproject-0.0.0.tar.gz"
+  },
+  {"name": "tool.uv.sources is ignored", "expect": "success", "setup": "printf '\\n[tool.uv.sources]\\ncoola = { path = \"/does/not/exist\" }\\n' >> pyproject.toml"},
+  {
+    "name": "project uv config is ignored",
+    "comment": "Regression G2: the install must not read the project's [tool.uv]. Fails until PR 4 moves the install out of the workspace.",
+    "skip": "enabled by the verify.sh PR (G2)",
+    "expect": "success",
+    "setup": "printf '\\n[tool.uv]\\nindex-url = \"http://127.0.0.1:9/simple\"\\n' >> pyproject.toml"
+  },
+  {"name": "extra and sdist", "expect": "success", "dist-type": "sdist", "package-extra": "all"},
+  {"name": "check-types false without py.typed", "expect": "success", "check-types": "false", "setup": "rm src/myproject/py.typed"},
+  {
+    "name": "project-path",
+    "expect": "success",
+    "project-path": "sub/dir",
+    "setup": "mkdir -p sub/dir\ncp -r pyproject.toml README.md LICENSE src sub/dir\nrm -rf pyproject.toml src"
+  }
+]
