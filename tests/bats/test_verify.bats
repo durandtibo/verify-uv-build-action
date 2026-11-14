@@ -132,7 +132,7 @@ count() {
 
 @test "build runs with --no-sources on the project path" {
 	run bash "${VERIFY}"
-	grep -Fq -- "build ${WORK}/proj --no-sources --out-dir" "${CALLS}/uv_build"
+	grep -Fq -- "build ${WORK}/proj --no-config --no-sources --out-dir" "${CALLS}/uv_build"
 }
 
 @test "build output with no wheel fails" {
@@ -192,27 +192,31 @@ count() {
 	[ -f "${wheel2}" ]
 }
 
-@test "install runs outside the project directory (regression G2)" {
+@test "every uv call ignores the project configuration (regression H1)" {
+	run bash "${VERIFY}"
+	[ "$status" -eq 0 ]
+	grep -Fq -- "--no-config" "${CALLS}/uv_build"
+	[ "$(count uv_venv)" -gt 0 ]
+	while IFS= read -r line; do [[ "${line}" == *"--no-config"* ]]; done <"${CALLS}/uv_venv"
+	[ "$(count uv_install)" -gt 0 ]
+	while IFS= read -r line; do [[ "${line}" == *"--no-config"* ]]; done <"${CALLS}/uv_install"
+	grep -Fq -- "--no-config" "${CALLS}/uvx"
+}
+
+@test "the install targets the venv explicitly, not through VIRTUAL_ENV (regression H1)" {
 	run bash "${VERIFY}"
 	[ "$status" -eq 0 ]
 	while IFS= read -r line; do
-		cwd="${line#cwd=}"
-		cwd="${cwd%% *}"
-		[[ "${cwd}" == "${WORK}/runner/verify-uv-build."* ]]
+		[[ "${line}" == *"--python ${WORK}/runner/verify-uv-build."*"/venv-"* ]]
+		[[ "${line}" == *"venv="" "* ]]
 	done <"${CALLS}/uv_install"
-	[ "$(count uv_install)" -gt 0 ]
-}
-
-@test "venv creation also runs outside the project directory (regression G2)" {
-	run bash "${VERIFY}"
-	grep -Fq "cwd=${WORK}/runner/verify-uv-build." "${CALLS}/uv_venv"
 }
 
 @test "the caller's working directory is not changed by the install" {
 	cd "${WORK}/proj"
 	PROJECT_PATH=. run bash "${VERIFY}"
 	[ "$status" -eq 0 ]
-	grep -Fq -- "build . --no-sources" "${CALLS}/uv_build"
+	grep -Fq -- "build . --no-config --no-sources" "${CALLS}/uv_build"
 }
 
 @test "dist-type both installs and checks both artifacts" {

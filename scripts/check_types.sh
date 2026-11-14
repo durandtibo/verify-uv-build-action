@@ -54,9 +54,9 @@ check_types() {
 	fi
 
 	echo "🔍 Verifying type completeness for module: ${module_name}"
-	echo "$ PYTHONPATH=${site_packages} uvx pyright@${PYRIGHT_VERSION} --verifytypes ${module_name} --ignoreexternal"
+	echo "$ PYTHONPATH=${site_packages} uvx --no-config pyright@${PYRIGHT_VERSION} --verifytypes ${module_name} --ignoreexternal"
 	# --ignoreexternal: do not report issues in external dependencies
-	if ! PYTHONPATH="${site_packages}" uvx "pyright@${PYRIGHT_VERSION}" \
+	if ! PYTHONPATH="${site_packages}" uvx --no-config "pyright@${PYRIGHT_VERSION}" \
 		--verifytypes "${module_name}" --ignoreexternal; then
 		log_error "type completeness check failed for ${module_name} (expected pyright exit 0, got a failure; see output above)"
 		return 1

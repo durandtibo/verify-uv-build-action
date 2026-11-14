@@ -86,7 +86,7 @@ teardown() {
 
 @test "passes the pinned version and module to uvx" {
 	run bash "${SCRIPT}" mypkg
-	[ "$(cat "${WORK}/uvx_args")" = "pyright@1.2.3 --verifytypes mypkg --ignoreexternal" ]
+	[ "$(cat "${WORK}/uvx_args")" = "--no-config pyright@1.2.3 --verifytypes mypkg --ignoreexternal" ]
 }
 
 @test "exposes the site-packages of the environment through PYTHONPATH" {
