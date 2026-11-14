@@ -108,58 +108,43 @@ runs:
           echo "SDIST_PATH=${sdists[0]}"
         } >> "$GITHUB_ENV"
 
-    # Verify py.typed marker exists in wheel
-    - name: Check py.typed in wheel distribution
+    # Verify the wheel: name, version, py.typed marker and extras
+    - name: Check wheel distribution
       shell: bash
-      run: |
-        set -euo pipefail
-        # Capture first: `grep -q` in a pipe can trigger SIGPIPE under pipefail
-        output=$(unzip -Z1 "$WHEEL_PATH")
-        if grep -q 'py\.typed$' <<<"$output"; then
-          echo "✅ py.typed marker found in wheel"
-        else
-          echo "❌ Error: py.typed marker not found in wheel"
-          exit 1
-        fi
-
-    # Verify py.typed marker exists in sdist
-    - name: Check py.typed in sdist distribution
-      shell: bash
-      run: |
-        set -euo pipefail
-        output=$(tar -tzf "$SDIST_PATH")
-        if grep -q 'py\.typed$' <<<"$output"; then
-          echo "✅ py.typed marker found in sdist"
-        else
-          echo "❌ Error: py.typed marker not found in sdist"
-          exit 1
-        fi
-
-    # Verify extra is defined in wheel metadata
-    - name: Verify extra is defined in wheel metadata
-      shell: bash
-      if: ${{ inputs.verify-wheel-extra == 'true' }}
       env:
+        PACKAGE_NAME: ${{ inputs.package-name }}
+        INPUT_MODULE_NAME: ${{ inputs.module-name }}
         PACKAGE_EXTRA: ${{ inputs.package-extra }}
+        VERIFY_EXTRA: ${{ inputs.verify-wheel-extra }}
       run: |
         set -euo pipefail
-        echo "🔍 Verifying extra is defined in wheel metadata..."
-        bash "$GITHUB_ACTION_PATH/scripts/verify_wheel_extras.sh" \
-          "$WHEEL_PATH" "$PACKAGE_EXTRA"
-        echo "✅ wheel extra checks passed"
+        extras="$PACKAGE_EXTRA"
+        if [ "$VERIFY_EXTRA" != "true" ]; then
+          extras=""
+        fi
+        echo "🔍 Checking wheel distribution..."
+        bash "$GITHUB_ACTION_PATH/scripts/check_dist.sh" \
+          "$WHEEL_PATH" "$PACKAGE_NAME" "$INPUT_MODULE_NAME" "$extras" true
+        echo "✅ wheel checks passed"
 
-    # Verify extra is defined in sdist metadata
-    - name: Verify extra is defined in sdist metadata
+    # Verify the sdist: name, version, py.typed marker and extras
+    - name: Check sdist distribution
       shell: bash
-      if: ${{ inputs.verify-sdist-extra == 'true' }}
       env:
+        PACKAGE_NAME: ${{ inputs.package-name }}
+        INPUT_MODULE_NAME: ${{ inputs.module-name }}
         PACKAGE_EXTRA: ${{ inputs.package-extra }}
+        VERIFY_EXTRA: ${{ inputs.verify-sdist-extra }}
       run: |
         set -euo pipefail
-        echo "🔍 Verifying extra is defined in sdist metadata..."
-        bash "$GITHUB_ACTION_PATH/scripts/verify_sdist_extras.sh" \
-          "$SDIST_PATH" "$PACKAGE_EXTRA"
-        echo "✅ sdist extra checks passed"
+        extras="$PACKAGE_EXTRA"
+        if [ "$VERIFY_EXTRA" != "true" ]; then
+          extras=""
+        fi
+        echo "🔍 Checking sdist distribution..."
+        bash "$GITHUB_ACTION_PATH/scripts/check_dist.sh" \
+          "$SDIST_PATH" "$PACKAGE_NAME" "$INPUT_MODULE_NAME" "$extras" true
+        echo "✅ sdist checks passed"
 
     # Install the built package from the selected distribution
     - name: Install built package
