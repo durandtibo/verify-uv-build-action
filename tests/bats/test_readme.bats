@@ -81,3 +81,18 @@ readme_default() {
 		grep -q "^  ${name}:" action.yaml
 	done
 }
+
+@test "every message prefix of the troubleshooting table exists in scripts/" {
+	local prefix
+	while IFS= read -r prefix; do
+		grep -rFq -- "${prefix}" scripts/ || {
+			echo "README.md troubleshooting lists '${prefix}', which no script prints" >&2
+			return 1
+		}
+	done < <(awk '/^## Troubleshooting/ { t = 1; next } /^## / { t = 0 } t && /^\| `/ { print }' README.md |
+		awk -F'|' '{ print $2 }' | grep -o '`[^`]*`' | tr -d '`')
+}
+
+@test "the troubleshooting table is not empty" {
+	[ "$(awk '/^## Troubleshooting/ { t = 1; next } /^## / { t = 0 } t && /^\| `/' README.md | wc -l)" -ge 20 ]
+}

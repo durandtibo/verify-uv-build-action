@@ -7,6 +7,15 @@ A GitHub Action that builds a Python project with [uv](https://github.com/astral
 verifies that the **published artifacts** (the wheel and the sdist) are correct and usable. It
 checks the built files and a clean install, never the source tree.
 
+- **Faithful and hermetic:** what is verified is what `pip install <package>` gives a user. The
+  build and the install ignore the project's uv configuration and the checkout's files.
+- **Fail loudly:** a check that cannot run is a failure, never a skip.
+- **Zero configuration:** `uses:` with no input works for a standard `uv` project.
+- **Fast:** one build, one install per artifact, cheap archive checks first, tools through `uvx`.
+- **Clean:** no exported environment variable, no `.venv`, no file in the workspace.
+- **Actionable:** one `❌` line per failure, and a job summary with the verdict and the failed phase.
+- **Tested against real tools:** CI proves that every check fails when it should.
+
 ## What is verified
 
 | Check                                                                            | Wheel | Sdist | Install |
@@ -148,31 +157,32 @@ jobs:
 Each failure prints one `❌` line that says what was expected and what was found. Details are in
 the collapsed log groups.
 
-| Message starts with                                     | Cause and fix                                                                          |
-| ------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `Input 'dist-type' must be`                             | Use exactly `wheel`, `sdist` or `both`.                                                |
-| `Input 'module-name' must be`                           | Use a dotted Python identifier, for example `my_package.sub`.                          |
-| `Input 'twine-version' must be`                         | Use `latest` or a version such as `7.0.0` (same for `pyright-version`).                |
-| `Input 'check-types' must be`                           | Use exactly `true` or `false`.                                                         |
-| `No pyproject.toml found in project-path`               | Fix `project-path`, it must contain `pyproject.toml`.                                  |
-| `Input 'package-name' is not a valid`                   | Use the distribution name, for example `my-package`.                                   |
-| `uv build failed`                                       | The build failed, see the output of `uv build` above the message.                      |
-| `Expected exactly 1 wheel` / `1 sdist`                  | The build produced no artifact or several. Check the build backend configuration.      |
-| `wrong package name`                                    | `package-name` differs from the `Name` in the metadata (compared in normalized form).  |
-| `wheel and sdist have different versions`               | Fix the version source so that both artifacts report the same version.                 |
-| `invalid version`                                       | The metadata version is missing or `0.0.0`. Fix the version source of the build.       |
-| `extra not defined`                                     | A requested `package-extras` is not in `Provides-Extra`. Fix the extra or the input.   |
-| `py.typed marker missing`                               | Add `<module>/py.typed` to the package, or set `check-types: false`.                   |
-| `core metadata file not found`                          | The archive has no `METADATA` or `PKG-INFO`. It is invalid for PyPI.                   |
-| `twine check failed`                                    | Fix the metadata warnings (for example a missing `readme`).                            |
-| `Installation of the`                                   | The artifact does not install. Check its dependencies, or set a `UV_*` index variable. |
-| `package not installed`                                 | The install succeeded but the package is not in the environment. Check `package-name`. |
-| `wrong installed package name`                          | The installed name differs from `package-name`.                                        |
-| `wrong installed version` / `invalid installed version` | The installed version differs from the built wheel, or is invalid.                     |
-| `dependency not installed`                              | A `package-dependencies` entry is not in the installed `Requires`.                     |
-| `cannot import`                                         | The installed package does not import. Check the packaged files.                       |
-| `not imported from site-packages`                       | The module was imported from somewhere else than the installed package.                |
-| `type completeness check failed`                        | Fix the type annotations reported by pyright, or set `check-types: false`.             |
+| Message starts with                                     | Cause and fix                                                                             |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `Input 'dist-type' must be`                             | Use exactly `wheel`, `sdist` or `both`.                                                   |
+| `Input 'module-name' must be`                           | Use a dotted Python identifier, for example `my_package.sub`.                             |
+| `Input 'twine-version' must be`                         | Use `latest` or a version such as `7.0.0` (same for `pyright-version`).                   |
+| `Input 'check-types' must be`                           | Use exactly `true` or `false`.                                                            |
+| `No pyproject.toml found in project-path`               | Fix `project-path`, it must contain `pyproject.toml`.                                     |
+| `Input 'package-name' is not a valid`                   | Use the distribution name, for example `my-package`.                                      |
+| `uv build failed`                                       | The build failed, see the output of `uv build` above the message.                         |
+| `Expected exactly 1 wheel` / `Expected exactly 1 sdist` | The build produced no artifact or several. Check the build backend configuration.         |
+| `wrong package name`                                    | `package-name` differs from the `Name` in the metadata (compared in normalized form).     |
+| `wheel and sdist have different versions`               | Fix the version source so that both artifacts report the same version.                    |
+| `invalid version`                                       | The metadata version is missing or `0.0.0`. Fix the version source of the build.          |
+| `extra not defined`                                     | A requested `package-extras` is not in `Provides-Extra`. Fix the extra or the input.      |
+| `py.typed marker missing`                               | Add `<module>/py.typed` to the package, or set `check-types: false`.                      |
+| `core metadata file not found`                          | The archive has no `METADATA` or `PKG-INFO`. It is invalid for PyPI.                      |
+| `twine check failed`                                    | Fix the metadata warnings (for example a missing `readme`).                               |
+| `Installation of the`                                   | The artifact does not install. Check its dependencies, or set a `UV_*` index variable.    |
+| `package not installed`                                 | The install succeeded but the package is not in the environment. Check `package-name`.    |
+| `wrong installed package name`                          | The installed name differs from `package-name`.                                           |
+| `wrong installed version` / `invalid installed version` | The installed version differs from the built wheel, or is invalid.                        |
+| `the environment has broken dependencies`               | `uv pip check` found a missing or conflicting requirement. Fix the declared requirements. |
+| `dependency not installed`                              | A `package-dependencies` entry is not in the installed `Requires`.                        |
+| `cannot import`                                         | The installed package does not import. Check the packaged files.                          |
+| `not imported from site-packages`                       | The module was imported from somewhere else than the installed package.                   |
+| `type completeness check failed`                        | Fix the type annotations reported by pyright, or set `check-types: false`.                |
 
 ## Migration from 0.0.x
 
