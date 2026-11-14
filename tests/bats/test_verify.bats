@@ -72,7 +72,7 @@ if [ "${kind}" = "wheel" ]; then
 else
 	top="myproject${suffix}-${version}"
 	mkdir -p "${src}/${top}"
-	printf 'Metadata-Version: 2.4\nName: myproject\nVersion: %s\nProvides-Extra: all\n' "${version}" \
+	printf 'Metadata-Version: 2.4\nName: %s\nVersion: %s\nProvides-Extra: all\n' "${SDIST_NAME:-myproject}" "${version}" \
 		>"${src}/${top}/PKG-INFO"
 	tar -czf "${out}/${top}.tar.gz" -C "${src}" "${top}"
 fi
@@ -121,9 +121,30 @@ count() {
 	[ "$(count uv_build)" -eq 0 ]
 }
 
-@test "missing package name exits 2" {
+@test "an empty package name is read from the wheel" {
 	unset PACKAGE_NAME
-	run -2 bash "${VERIFY}"
+	run bash "${VERIFY}"
+	[ "$status" -eq 0 ]
+	grep -Fq "venv-wheel myproject " "${CALLS}/check_install"
+}
+
+@test "an empty package name is checked against the sdist (regression M4)" {
+	unset PACKAGE_NAME
+	SDIST_NAME=other run --separate-stderr bash "${VERIFY}"
+	[ "$status" -eq 1 ]
+	[[ "$stderr" == *"wrong package name in"* ]]
+}
+
+@test "an invalid package name is still rejected when set" {
+	PACKAGE_NAME="my project" run -2 bash "${VERIFY}"
+}
+
+@test "dist-dir is an output and holds both archives" {
+	GITHUB_OUTPUT="${WORK}/out" run bash "${VERIFY}"
+	dir="$(sed -n 's/^dist-dir=//p' "${WORK}/out")"
+	[ -f "${dir}/myproject-1.0-py3-none-any.whl" ]
+	[ -f "${dir}/myproject-1.0.tar.gz" ]
+	[ "$(sed -n 's/^wheel-path=//p' "${WORK}/out")" = "${dir}/myproject-1.0-py3-none-any.whl" ]
 }
 
 @test "latest is a valid tool version" {

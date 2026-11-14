@@ -37,6 +37,7 @@
     "expect": "success",
     "setup": "printf '\\n[tool.uv]\\nindex-url = \"http://127.0.0.1:9/simple\"\\n' >> pyproject.toml"
   },
+  {"name": "dist-type wheel", "expect": "success", "dist-type": "wheel"},
   {"name": "extra and sdist", "expect": "success", "dist-type": "sdist", "package-extras": "all"},
   {"name": "check-types false without py.typed", "expect": "success", "check-types": "false", "setup": "rm src/myproject/py.typed"},
   {

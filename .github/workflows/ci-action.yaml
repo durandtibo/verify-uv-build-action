@@ -18,7 +18,7 @@ jobs:
   get-extras:
     permissions:
       contents: read
-    uses: ./.github/workflows/lib-get-package-extrass.yaml
+    uses: ./.github/workflows/lib-get-package-extras.yaml
     with:
       extra-values: '[""]'
 
@@ -60,10 +60,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
 
+      # package-name is omitted: it is read from the wheel
       - name: Verify Build
         uses: ./
         with:
-          package-name: myproject
           package-extras: ${{ matrix.package-extras }}
           package-dependencies: coola
 
