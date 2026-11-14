@@ -12,7 +12,9 @@
 #
 # Functions:
 #   log_ok <message>      - print "✅ <message>" on stdout
-#   log_error <message>   - print "❌ <message>" on stderr
+#   log_error <message>   - print "❌ <message>" on stderr, plus a
+#                           "::error::<message>" annotation when
+#                           GITHUB_ACTIONS is "true"
 #   die <message>         - log_error, then exit 1
 #   normalize_name <name> - PEP 503/685 normalization (lowercase, runs of
 #                           "-", "_" and "." become a single "-")
@@ -21,6 +23,12 @@
 #   default_module_name <package-name>
 #                         - import name derived from a distribution name:
 #                           "-" and "." replaced by "_"
+#   is_dotted_identifier <value>
+#                         - succeed if value is a Python module path such as
+#                           "a" or "a.b_c" (identifiers separated by dots)
+#   is_version_spec <value>
+#                         - succeed if value is "latest" or a version such as
+#                           "1.2.3", "1.1.414" or "2.0rc1"
 #   group_start <title>   - open a collapsed GitHub Actions log group
 #   group_end             - close the log group
 #
@@ -33,6 +41,9 @@ log_ok() {
 
 log_error() {
 	echo "❌ $*" >&2
+	if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+		echo "::error::$*"
+	fi
 }
 
 die() {
@@ -63,6 +74,14 @@ default_module_name() {
 	local name="$1"
 	name="${name//-/_}"
 	echo "${name//./_}"
+}
+
+is_dotted_identifier() {
+	[[ "${1:-}" =~ ^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$ ]]
+}
+
+is_version_spec() {
+	[ "${1:-}" = "latest" ] || [[ "${1:-}" =~ ^[0-9][A-Za-z0-9.!+_-]*$ ]]
 }
 
 group_start() {

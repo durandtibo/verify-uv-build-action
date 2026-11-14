@@ -12,17 +12,19 @@
 #   project checkout.
 #
 # Usage:
-#   PYRIGHT_VERSION=<version> VIRTUAL_ENV=<venv> ./check_types.sh <module_name>
+#   PYRIGHT_VERSION=<version> VIRTUAL_ENV=<venv> ./check_types.sh <package_name> [module_name]
 #
 # Arguments:
-#   module_name - Import name of the package to check (required)
+#   package_name - Distribution name (required)
+#   module_name  - Import name of the package to check. Default: package_name
+#                  with "-" and "." replaced by "_"
 #
 # Environment:
 #   PYRIGHT_VERSION - pyright version run through uvx (required)
 #   VIRTUAL_ENV     - environment where the package is installed (required)
 #
 # Examples:
-#   PYRIGHT_VERSION=1.1.414 VIRTUAL_ENV=/tmp/venv ./check_types.sh mypackage
+#   PYRIGHT_VERSION=1.1.414 VIRTUAL_ENV=/tmp/venv ./check_types.sh my-package my_package
 #
 # Requirements:
 #   - uv (uvx) available in PATH, with network access to fetch pyright
@@ -38,7 +40,7 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 usage() {
-	echo "Usage: PYRIGHT_VERSION=<version> VIRTUAL_ENV=<venv> $0 <module_name>" >&2
+	echo "Usage: PYRIGHT_VERSION=<version> VIRTUAL_ENV=<venv> $0 <package_name> [module_name]" >&2
 }
 
 check_types() {
@@ -63,8 +65,8 @@ check_types() {
 }
 
 main() {
-	if [ $# -ne 1 ] || [ -z "$1" ]; then
-		echo "Error: module name is required" >&2
+	if [ $# -lt 1 ] || [ $# -gt 2 ] || [ -z "$1" ]; then
+		echo "Error: <package_name> [module_name] expected" >&2
 		usage
 		exit 2
 	fi
@@ -78,7 +80,14 @@ main() {
 		usage
 		exit 2
 	fi
-	check_types "$1" || exit 1
+	local module_name="${2:-}"
+	[ -n "${module_name}" ] || module_name="$(default_module_name "$1")"
+	if ! is_dotted_identifier "${module_name}"; then
+		echo "Error: module_name must be a dotted identifier (got '${module_name}')" >&2
+		usage
+		exit 2
+	fi
+	check_types "${module_name}" || exit 1
 }
 
 # Only run main if script is executed directly (not sourced)

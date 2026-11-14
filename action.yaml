@@ -249,10 +249,7 @@ runs:
         VIRTUAL_ENV: ${{ runner.temp }}/verify-uv-build/venv
       run: |
         set -euo pipefail
-        # shellcheck source=scripts/lib.sh
-        source "$GITHUB_ACTION_PATH/scripts/lib.sh"
-        module="${INPUT_MODULE_NAME:-$(default_module_name "$PACKAGE_NAME")}"
-        bash "$GITHUB_ACTION_PATH/scripts/check_types.sh" "$module"
+        bash "$GITHUB_ACTION_PATH/scripts/check_types.sh" "$PACKAGE_NAME" "$INPUT_MODULE_NAME"
 
     # Display artifact contents for debugging, even when a step failed
     - name: Show artifacts

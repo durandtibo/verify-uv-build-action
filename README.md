@@ -16,7 +16,7 @@ checks the built files and a clean install, never the source tree.
 | Version is not the placeholder `0.0.0`                              |  ✅   |  ✅   |   ✅    |
 | Installed version equals the built wheel version                    |       |       |   ✅    |
 | Every `package-extra` is in `Provides-Extra`                        |  ✅   |  ✅   |         |
-| `<module>/py.typed` is present (if `check-types`)                   |  ✅   |  ✅   |         |
+| `<module>/py.typed` is present in the wheel (if `check-types`)      |  ✅   |       |         |
 | `twine check --strict`                                              |  ✅   |  ✅   |         |
 | Every `package-dependencies` entry is installed                     |       |       |   ✅    |
 | The module imports from `site-packages`, run outside the checkout   |       |       |   ✅    |
