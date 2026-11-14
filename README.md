@@ -62,16 +62,26 @@ jobs:
 
 ## Inputs
 
-| Input                  | Required | Default | Description                                                                                        |
-| ---------------------- | -------- | ------- | -------------------------------------------------------------------------------------------------- |
-| `package-name`         | Yes      | -       | The name of the package to verify (distribution name on PyPI)                                      |
-| `module-name`          | No       | `""`    | The name used in import statements (defaults to package-name with hyphens replaced by underscores) |
-| `package-extra`        | No       | `""`    | Optional package extras to install (e.g., `dev`, `test`)                                           |
-| `package-dependencies` | No       | `""`    | Comma-separated list of required dependencies to verify                                            |
-| `dist-type`            | No       | `wheel` | Distribution type to test: `wheel` or `sdist`                                                      |
-| `python-version`       | No       | `3.13`  | Python version to use for testing                                                                  |
-| `verify-wheel-extra`   | No       | `true`  | Whether to verify the wheel extra is defined in metadata                                           |
-| `verify-sdist-extra`   | No       | `true`  | Whether to verify the sdist extra is defined in metadata                                           |
+| Input                  | Required | Default   | Description                                                                                        |
+| ---------------------- | -------- | --------- | -------------------------------------------------------------------------------------------------- |
+| `package-name`         | Yes      | -         | The name of the package to verify (distribution name on PyPI)                                      |
+| `module-name`          | No       | `""`      | The name used in import statements (defaults to package-name with hyphens replaced by underscores) |
+| `package-extra`        | No       | `""`      | Optional package extras to install (e.g., `dev`, `test`)                                           |
+| `package-dependencies` | No       | `""`      | Comma-separated list of required dependencies to verify                                            |
+| `dist-type`            | No       | `wheel`   | Distribution type to test: `wheel` or `sdist`                                                      |
+| `python-version`       | No       | `3.13`    | Python version to use for testing                                                                  |
+| `project-path`         | No       | `.`       | Directory containing `pyproject.toml` (monorepos)                                                  |
+| `twine-version`        | No       | `7.0.0`   | Version of twine used by `twine check`                                                             |
+| `pyright-version`      | No       | `1.1.414` | Version of pyright used by `pyright --verifytypes`                                                 |
+| `check-types`          | No       | `true`    | Check the `py.typed` marker and type completeness. Set `false` for untyped packages                |
+
+## Outputs
+
+| Output       | Description                           |
+| ------------ | ------------------------------------- |
+| `wheel-path` | Absolute path of the built wheel      |
+| `sdist-path` | Absolute path of the built sdist      |
+| `version`    | Version from the built wheel metadata |
 
 ## What Does This Action Do?
 

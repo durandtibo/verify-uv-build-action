@@ -12,6 +12,7 @@ only-include = ["src"]
 name = "myproject"
 version = "0.1.0"
 description = ""
+readme = "README.md"
 license = "BSD-3-Clause"
 
 requires-python = ">=3.10"
