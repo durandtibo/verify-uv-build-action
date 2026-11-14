@@ -1,0 +1,4 @@
+# Pinned versions of the tools that verify.sh runs through uvx. They are used when
+# the inputs twine-version and pyright-version are empty. Dependabot bumps them.
+twine==7.0.0
+pyright==1.1.414

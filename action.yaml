@@ -52,15 +52,18 @@ inputs:
     required: false
     default: "."
   twine-version:
-    description: "Version of twine used by `twine check`"
+    description: |
+      Version of twine used by `twine check`. Empty means the version
+      pinned in scripts/requirements.txt.
     required: false
-    default: "7.0.0"
+    default: ""
   pyright-version:
     description: |
-      Version of pyright used by `pyright --verifytypes`. It is ignored
-      when check-types is false.
+      Version of pyright used by `pyright --verifytypes`. Empty means the
+      version pinned in scripts/requirements.txt. It is ignored when
+      check-types is false.
     required: false
-    default: "1.1.414"
+    default: ""
   check-types:
     description: |
       Whether to check the py.typed marker and the type completeness
