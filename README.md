@@ -45,6 +45,9 @@ that fails. Every failure of a phase is reported before it stops.
 | 5   | Check install  | Name, version, dependencies and import of each installed artifact.                          |
 | 6   | Check types    | `pyright --verifytypes` on the first installed artifact (if `check-types`).                 |
 
+The job summary states the verdict, the failed phase and the reason, a table of the phases and the
+content of the archives, also when a check failed. The outputs are written right after the build.
+
 ## Quick start
 
 ```yaml

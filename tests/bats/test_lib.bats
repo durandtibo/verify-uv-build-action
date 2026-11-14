@@ -129,3 +129,16 @@ setup() {
 		[ "$status" -ne 0 ]
 	done
 }
+
+@test "log_error appends to REPORT_FILE when it is set" {
+	REPORT_FILE="${BATS_TEST_TMPDIR}/report"
+	log_error "boom" 2>/dev/null
+	log_error "bang" 2>/dev/null
+	[ "$(cat "${BATS_TEST_TMPDIR}/report")" = "$(printf 'error|boom\nerror|bang')" ]
+}
+
+@test "log_error writes no report when REPORT_FILE is unset" {
+	unset REPORT_FILE
+	run log_error "boom"
+	[ "$status" -eq 0 ]
+}

@@ -321,3 +321,60 @@ count() {
 	[ "$output" = "validate_inputs" ]
 	[ "$(count uv_build)" -eq 0 ]
 }
+
+@test "the summary states the verdict and every phase when all checks pass" {
+	GITHUB_STEP_SUMMARY="${WORK}/summary" run bash "${VERIFY}"
+	[ "$status" -eq 0 ]
+	grep -Fq "## ✅ Verify uv build: passed" "${WORK}/summary"
+	grep -Fq "| Build | ✅ |" "${WORK}/summary"
+	grep -Fq "| Check types | ✅ |" "${WORK}/summary"
+	grep -Fq "<summary>Content of myproject-1.0-py3-none-any.whl</summary>" "${WORK}/summary"
+	grep -Fq "<summary>Content of myproject-1.0.tar.gz</summary>" "${WORK}/summary"
+}
+
+@test "the summary states the failed phase and the reason when a check fails" {
+	PACKAGE_NAME=other GITHUB_STEP_SUMMARY="${WORK}/summary" run bash "${VERIFY}"
+	[ "$status" -eq 1 ]
+	grep -Fq '## ❌ Verify uv build: failed in "Check archives"' "${WORK}/summary"
+	grep -Fq -- "- ❌ wrong package name in" "${WORK}/summary"
+	grep -Fq "| Build | ✅ |" "${WORK}/summary"
+	grep -Fq "| Check archives | ❌ |" "${WORK}/summary"
+	grep -Fq "| Install | skipped |" "${WORK}/summary"
+	grep -Fq "| Check types | skipped |" "${WORK}/summary"
+	grep -Fq "Content of myproject-1.0.tar.gz" "${WORK}/summary"
+}
+
+@test "the summary reports invalid inputs, with the build skipped" {
+	DIST_TYPE=tar GITHUB_STEP_SUMMARY="${WORK}/summary" run bash "${VERIFY}"
+	[ "$status" -eq 2 ]
+	grep -Fq '## ❌ Verify uv build: failed in "Validate"' "${WORK}/summary"
+	grep -Fq -- "- ❌ Input 'dist-type'" "${WORK}/summary"
+	grep -Fq "| Build | skipped |" "${WORK}/summary"
+	! grep -Fq "<details>" "${WORK}/summary"
+}
+
+@test "the summary marks check types as skipped when check-types is false" {
+	CHECK_TYPES=false GITHUB_STEP_SUMMARY="${WORK}/summary" run bash "${VERIFY}"
+	[ "$status" -eq 0 ]
+	grep -Fq "| Check types | skipped |" "${WORK}/summary"
+}
+
+@test "the summary is appended, not overwritten, by a second invocation" {
+	echo "previous" >"${WORK}/summary"
+	GITHUB_STEP_SUMMARY="${WORK}/summary" run bash "${VERIFY}"
+	[ "$(sed -n 1p "${WORK}/summary")" = "previous" ]
+	grep -Fq "Verify uv build: passed" "${WORK}/summary"
+}
+
+@test "no summary is written when GITHUB_STEP_SUMMARY is unset" {
+	unset GITHUB_STEP_SUMMARY
+	run bash "${VERIFY}"
+	[ "$status" -eq 0 ]
+}
+
+@test "the outputs are written even when a later phase fails" {
+	PACKAGE_NAME=other GITHUB_OUTPUT="${WORK}/out" run bash "${VERIFY}"
+	[ "$status" -eq 1 ]
+	grep -Fq "wheel-path=" "${WORK}/out"
+	grep -Fq "version=1.0" "${WORK}/out"
+}

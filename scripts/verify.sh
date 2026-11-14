@@ -18,6 +18,11 @@
 #     6. check_types once, on the first installed artifact (if CHECK_TYPES)
 #   Every invocation gets its own work directory, which is never deleted, so
 #   the outputs of an earlier invocation stay valid.
+#   Every phase appends its result, and lib.sh appends every error, to
+#   <work directory>/report. An EXIT trap renders the job summary from it, so
+#   the summary states the verdict, the failed phase and the reason even when
+#   the run failed. The outputs are written right after the build, so they
+#   exist even when a later phase fails.
 #
 # Usage:
 #   PACKAGE_NAME=<name> [VAR=value ...] bash scripts/verify.sh
@@ -36,6 +41,8 @@
 #   RUNNER_TEMP           Parent of the work directory. Default: TMPDIR or /tmp
 #   GITHUB_OUTPUT         When set, wheel-path, sdist-path and version are
 #                         appended to it
+#   GITHUB_STEP_SUMMARY   When set, the verdict, a table of the phases and the
+#                         content of the archives are appended to it
 #
 # Examples:
 #   PACKAGE_NAME=mypkg bash scripts/verify.sh
@@ -229,14 +236,74 @@ for_each_type() {
 	return "${status}"
 }
 
-# Run a phase inside a log group. Usage: run_phase <title> <function> [args]
+# The phases, in order. The summary lists them all.
+PHASES=("Validate" "Build" "Check archives" "Install" "Check install" "Check types")
+
+# Record the result of a phase in the report: record_phase <ok|failed> <title>
+record_phase() {
+	echo "${1}|${2}" >>"${REPORT_FILE}"
+}
+
+# Run a phase inside a log group and record its result.
+# Usage: run_phase <title> <function> [args]
 run_phase() {
 	local title="$1" status=0
 	shift
 	group_start "${title}"
 	"$@" || status=1
 	group_end
+	if [ "${status}" -eq 0 ]; then
+		record_phase ok "${title}"
+	else
+		record_phase failed "${title}"
+	fi
 	return "${status}"
+}
+
+# Print the markdown cell of a phase: ✅, ❌ or skipped.
+phase_result() {
+	if grep -Fxq "ok|$1" "${REPORT_FILE}"; then
+		echo "✅"
+	elif grep -Fxq "failed|$1" "${REPORT_FILE}"; then
+		echo "❌"
+	else
+		echo "skipped"
+	fi
+}
+
+# Append the verdict, the failed phase, the reasons, a table of the phases and
+# the content of the archives to the job summary. Usage: write_summary <exit code>
+write_summary() {
+	local code="$1" failed phase file
+	[ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -f "${REPORT_FILE:-}" ] || return 0
+	failed="$(sed -n 's/^failed|//p' "${REPORT_FILE}" | sed -n 1p)"
+	{
+		if [ "${code}" -eq 0 ]; then
+			echo "## ✅ Verify uv build: passed"
+		elif [ -n "${failed}" ]; then
+			echo "## ❌ Verify uv build: failed in \"${failed}\""
+		else
+			echo "## ❌ Verify uv build: failed"
+		fi
+		echo
+		sed -n 's/^error|/- ❌ /p' "${REPORT_FILE}"
+		echo
+		echo "| Phase | Result |"
+		echo "| ----- | ------ |"
+		for phase in "${PHASES[@]}"; do
+			echo "| ${phase} | $(phase_result "${phase}") |"
+		done
+		for file in "${WHEEL_PATH:-}" "${SDIST_PATH:-}"; do
+			[ -n "${file}" ] && [ -f "${file}" ] || continue
+			echo
+			echo "<details><summary>Content of ${file##*/}</summary>"
+			echo
+			echo '```text'
+			list_archive "${file}" || true
+			echo '```'
+			echo "</details>"
+		done
+	} >>"${GITHUB_STEP_SUMMARY}"
 }
 
 run_checks() {
@@ -254,8 +321,15 @@ run_checks() {
 
 main() {
 	apply_defaults
-	validate_inputs || exit 2
 	WORK="$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/verify-uv-build.XXXXXX")"
+	REPORT_FILE="${WORK}/report"
+	: >"${REPORT_FILE}"
+	trap 'write_summary "$?"' EXIT
+	if ! validate_inputs; then
+		record_phase failed Validate
+		exit 2
+	fi
+	record_phase ok Validate
 	run_checks || exit 1
 }
 
