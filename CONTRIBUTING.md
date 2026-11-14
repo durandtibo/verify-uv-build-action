@@ -165,8 +165,6 @@ The repository includes several test workflows:
 - **Shell Unit Tests (`ci-shell.yaml`)**: Runs `make test-shell` (the bats tests) on multiple OS
 - **Test Action (`ci-action.yaml`)**: Tests the action using local code; the failure cases are
   rows of `tests/cases.json`
-- **Nightly Tests (`nightly.yaml`)**: Tests the latest released action daily
-  (`nightly-test-released.yaml`)
 
 To trigger tests:
 

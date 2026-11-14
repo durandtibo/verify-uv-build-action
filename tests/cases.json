@@ -1,10 +1,10 @@
 [
-  {"name": "invalid dist-type", "expect": "failure", "dist-type": "tar", "released": true},
+  {"name": "invalid dist-type", "expect": "failure", "dist-type": "tar"},
   {"name": "invalid check-types", "expect": "failure", "check-types": "maybe"},
   {"name": "missing project-path", "expect": "failure", "project-path": "does/not/exist"},
   {"name": "invalid package-name", "expect": "failure", "package-name": "my project"},
-  {"name": "missing py.typed", "expect": "failure", "setup": "rm src/myproject/py.typed", "released": true},
-  {"name": "unknown extra", "expect": "failure", "package-extra": "missing", "released": true},
+  {"name": "missing py.typed", "expect": "failure", "setup": "rm src/myproject/py.typed"},
+  {"name": "unknown extra", "expect": "failure", "package-extra": "missing"},
   {"name": "missing dependency", "expect": "failure", "package-dependencies": "not-a-dependency"},
   {"name": "wrong package-name", "expect": "failure", "package-name": "other-project"},
   {"name": "wrong module-name", "expect": "failure", "module-name": "other_module"},
