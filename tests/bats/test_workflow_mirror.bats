@@ -14,6 +14,11 @@ NIGHTLY=".github/workflows/nightly-test-released.yaml"
 # on the schedule of ci.yaml). Shrink this list when a release catches up.
 ONLY_IN_CI="test-tool-versions test-two-invocations test-latest-tools"
 
+# Differences between the unreleased action and the last release that are
+# normalized away until the next release: the input package-extra (released)
+# is package-extras (unreleased), and package-name is optional in the
+# unreleased action only. Remove these sed rules when a release catches up.
+
 # normalize <file>: print the file without the header comment, the workflow
 # name, the jobs of ONLY_IN_CI and blank lines, with the action reference, the
 # loader mode and the default dist-type replaced by placeholders.
@@ -36,6 +41,9 @@ normalize() {
 		{ if (!skip) { printf "%s", buf; print }; buf = "" }
 	' "$1" |
 		sed -e 's#uses: \./$#uses: ACTION#' \
+			-e 's#^\( *\)package-extra:#\1package-extras:#' \
+			-e '/package-name: myproject$/d' \
+			-e '/# package-name is omitted/d' \
 			-e 's#uses: durandtibo/verify-uv-build-action@.*#uses: ACTION#' \
 			-e 's#load-cases\.sh all#load-cases.sh MODE#' \
 			-e 's#load-cases\.sh released#load-cases.sh MODE#' \
