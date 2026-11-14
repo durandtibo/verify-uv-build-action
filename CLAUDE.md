@@ -87,7 +87,7 @@ Files are prefixed by role:
 - `lib-get-test-matrix.yaml`, `lib-get-package-extras.yaml`: reusable workflows that load the shared
   Python/OS matrix and the package extras once; callers pass them down through inputs.
 - `bot-*.yaml`: scheduled automation that opens PRs or acts on runs (format files, pin actions,
-  cancel stale queued runs).
+  sync the shared `.make` subtree, cancel stale queued runs).
 - `security-*.yaml`: dependency review and OSSF Scorecard.
 
 Conventions:
