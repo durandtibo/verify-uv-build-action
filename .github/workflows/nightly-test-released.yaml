@@ -1,8 +1,9 @@
-# Stable action test workflow.
-# Same checks as ci-test-local.yaml but against the latest stable release of
-# the action, to catch regressions between the release and the test fixtures.
+# Workflow testing the latest released action, to catch regressions in what
+# consumers pick up. It mirrors the tests of ci-action.yaml, which tests the
+# current checkout instead. Update the pinned release below when a new version
+# is released.
 
-name: Test Stable Action
+name: Test Released Action
 
 on:
   workflow_call:
@@ -12,17 +13,20 @@ on:
         required: true
         type: string
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   # Load the extras from pyproject.toml, plus "" for a baseline "no extra" build.
   get-extras:
+    permissions:
+      contents: read
     uses: ./.github/workflows/lib-get-package-extras.yaml
     with:
       extra-values: '[""]'
 
   test:
+    permissions:
+      contents: read
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
     strategy:
@@ -43,6 +47,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
   test-extra:
+    permissions:
+      contents: read
     needs: get-extras
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -70,6 +76,8 @@ jobs:
   #################################
 
   invalid-dist-type:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 5
@@ -96,6 +104,8 @@ jobs:
         run: echo "✅ Test passed - step failed as expected"
 
   missing-py-typed:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 5
@@ -126,6 +136,8 @@ jobs:
         run: echo "✅ Test passed - step failed as expected"
 
   incorrect-extra:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 5
@@ -153,6 +165,8 @@ jobs:
         run: echo "✅ Test passed - step failed as expected"
 
   incorrect-extra-skip:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     continue-on-error: true
     outputs:

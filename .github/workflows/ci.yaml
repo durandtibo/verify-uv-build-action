@@ -1,11 +1,16 @@
 # Main CI workflow that orchestrates all quality checks and tests.
 # Runs on pull requests, pushes to main, a nightly schedule, and manual dispatch.
+# It tests the current repository code, including the action
+# that is not released yet.
 #
-# Deliberately NOT called from here:
-#   - ci-verify-workflows.yaml: lints .github/workflows/* itself, so it has its
-#     own trigger instead of being part of this workflow.
+# Deliberately NOT called from here, with its own trigger:
+#   - ci-verify-workflows.yaml: lints .github/workflows/* itself.
+#
+# Permissions are set at the job level, not the workflow level.
+#
 # The individual check jobs below call out to per-check reusable workflows
-# (ci-format.yaml, ...) instead of inlining their steps here.
+# (ci-format.yaml, ...) instead of inlining their steps here, so each check
+# can still be run on its own (workflow_dispatch).
 
 name: CI
 on:
@@ -14,39 +19,40 @@ on:
     branches:
       - main
   schedule:
-    - cron: "0 9 * * *" # Run nightly at 9:00 AM UTC to catch issues from external changes
+    - cron: "10 9 * * *" # Run nightly at 9:10 AM UTC to catch issues from external changes
   workflow_dispatch: # to trigger manually
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
-  # Load the shared python-version/OS matrix from the default config of
-  # durandtibo/workflow-config-action once, and pass it down to every job below.
+  # Load the shared Python-version and OS matrices from the default config of
+  # durandtibo/workflow-config-action once, and pass them down to every job
+  # below that needs them.
   get-matrix:
     uses: ./.github/workflows/lib-get-test-matrix.yaml
+    permissions:
+      contents: read
 
-  # Verify code formatting and linting
+  # Verify formatting and linting of the repository files
   format:
     uses: ./.github/workflows/ci-format.yaml
+    permissions:
+      contents: read
 
-  # Test the local action
-  test-local:
+  # Run the bats unit tests of the shell scripts on multiple OS
+  shell:
     needs: get-matrix
-    uses: ./.github/workflows/ci-test-local.yaml
+    uses: ./.github/workflows/ci-shell.yaml
     with:
       test-matrix: ${{ needs.get-matrix.outputs.test_matrix }}
+    permissions:
+      contents: read
 
-  # Test the latest stable release of the action
-  test-stable:
+  # Test the action from the current repository code (not released yet)
+  action:
     needs: get-matrix
-    uses: ./.github/workflows/ci-test-stable.yaml
+    uses: ./.github/workflows/ci-action.yaml
     with:
       test-matrix: ${{ needs.get-matrix.outputs.test_matrix }}
-
-  # Run the shell unit tests
-  test-shell:
-    needs: get-matrix
-    uses: ./.github/workflows/ci-test-shell.yaml
-    with:
-      test-matrix: ${{ needs.get-matrix.outputs.test_matrix }}
+    permissions:
+      contents: read
