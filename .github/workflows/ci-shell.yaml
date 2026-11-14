@@ -32,17 +32,10 @@ jobs:
         shell: bash
         run: make install-bats
 
-      - name: Verify bats installation
-        run: |
-          bats --version
-
       - name: Show the versions of bash and bats
         run: |
           bash --version | head -n 1
           bats --version
 
       - name: Run unit tests
-        run: |
-          echo "🧪 Running tests on ${{ matrix.os }}..."
-          bats --recursive tests/bats
-          echo "✅ All tests passed"
+        run: make test-shell

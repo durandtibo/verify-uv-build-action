@@ -179,3 +179,9 @@ show() {
 	[[ "$stderr" =~ "dependency not installed" ]]
 	[[ "$stderr" =~ "not imported from site-packages" ]]
 }
+
+@test "the import runs in isolated mode (regression G9)" {
+	show mypkg 1.0 ""
+	run bash "${SCRIPT}" mypkg
+	[[ "$(cat "${WORK}/python_args")" == "-I "* ]]
+}

@@ -1,6 +1,10 @@
 # Workflow testing the action from the current repository code (uses: ./)
 # across the Python/OS matrix, with every package extra, and checks that each
 # failure mode really fails (and each edge case really passes).
+#
+# nightly-test-released.yaml mirrors this file for the last release, and
+# tests/bats/test_workflow_mirror.bats keeps the two aligned. The jobs that test
+# a feature the last release does not have yet are listed in that test.
 
 name: Test Action
 on:
@@ -54,7 +58,6 @@ jobs:
       max-parallel: 8
       fail-fast: false
       matrix:
-        dist-type: ["sdist", "wheel"]
         package-extra: ${{ fromJson(needs.get-extras.outputs.extras) }}
 
     steps:
@@ -64,7 +67,6 @@ jobs:
       - name: Verify Build
         uses: ./
         with:
-          dist-type: ${{ matrix.dist-type }}
           package-name: myproject
           package-extra: ${{ matrix.package-extra }}
           package-dependencies: coola
@@ -73,74 +75,34 @@ jobs:
   #     Tests of failures and cases     #
   #####################################
 
-  # Each entry optionally breaks the fixture with `setup`, runs the action with
+  # Load the failure and edge cases from tests/cases.json.
+  cases:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      cases: ${{ steps.load.outputs.cases }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+
+      - name: Load the cases
+        id: load
+        run: echo "cases=$(scripts/load-cases.sh all)" >> "$GITHUB_OUTPUT"
+
+  # Each case optionally breaks the fixture with `setup`, runs the action with
   # the given inputs, and asserts that the outcome is `expect`.
   test-cases:
     permissions:
       contents: read
+    needs: cases
     runs-on: ubuntu-latest
     timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: invalid dist-type
-            expect: failure
-            dist-type: tar
-          - name: invalid check-types
-            expect: failure
-            check-types: "maybe"
-          - name: missing project-path
-            expect: failure
-            project-path: does/not/exist
-          - name: invalid package-name
-            expect: failure
-            package-name: "my project"
-          - name: missing py.typed
-            expect: failure
-            setup: rm src/myproject/py.typed
-          - name: unknown extra
-            expect: failure
-            package-extra: missing
-          - name: missing dependency
-            expect: failure
-            package-dependencies: not-a-dependency
-          - name: wrong package-name
-            expect: failure
-            package-name: other-project
-          - name: wrong module-name
-            expect: failure
-            module-name: other_module
-          # Regression F1: a copy of the module in the checkout must not hide a
-          # wheel that does not contain it.
-          - name: flat layout imports from source
-            expect: failure
-            check-types: "false"
-            setup: |
-              cp -r src/myproject myproject
-              printf '\n[tool.hatch.build.targets.wheel]\nonly-include = ["README.md"]\n' >> pyproject.toml
-          # Regression F2: a stale dist/ in the checkout must be ignored.
-          - name: stale dist directory
-            expect: success
-            setup: |
-              mkdir dist
-              echo "not a wheel" > dist/myproject-0.0.0-py3-none-any.whl
-              echo "not an sdist" > dist/myproject-0.0.0.tar.gz
-          - name: extra and sdist
-            expect: success
-            dist-type: sdist
-            package-extra: all
-          - name: check-types false without py.typed
-            expect: success
-            check-types: "false"
-            setup: rm src/myproject/py.typed
-          - name: project-path
-            expect: success
-            project-path: sub/dir
-            setup: |
-              mkdir -p sub/dir
-              cp -r pyproject.toml README.md LICENSE src sub/dir
-              rm -rf pyproject.toml src
+        include: ${{ fromJson(needs.cases.outputs.cases) }}
 
     name: ${{ matrix.name }}
     steps:
@@ -161,7 +123,7 @@ jobs:
           module-name: ${{ matrix.module-name }}
           package-extra: ${{ matrix.package-extra }}
           package-dependencies: ${{ matrix.package-dependencies }}
-          dist-type: ${{ matrix.dist-type || 'wheel' }}
+          dist-type: ${{ matrix.dist-type || 'both' }}
           check-types: ${{ matrix.check-types || 'true' }}
           project-path: ${{ matrix.project-path || '.' }}
         continue-on-error: true
@@ -194,3 +156,69 @@ jobs:
           package-name: myproject
           twine-version: 6.2.0
           pyright-version: 1.1.413
+
+  # Regression G1: a second invocation in the same job must not delete the
+  # files of the first one.
+  test-two-invocations:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+
+      - name: First run
+        id: first
+        uses: ./
+        with:
+          package-name: myproject
+          dist-type: wheel
+
+      - name: Second run
+        id: second
+        uses: ./
+        with:
+          package-name: myproject
+          dist-type: sdist
+
+      - name: Check that the outputs of both runs still exist
+        env:
+          FIRST_WHEEL: ${{ steps.first.outputs.wheel-path }}
+          FIRST_SDIST: ${{ steps.first.outputs.sdist-path }}
+          SECOND_WHEEL: ${{ steps.second.outputs.wheel-path }}
+          SECOND_SDIST: ${{ steps.second.outputs.sdist-path }}
+        run: |
+          set -euo pipefail
+          for f in "$FIRST_WHEEL" "$FIRST_SDIST" "$SECOND_WHEEL" "$SECOND_SDIST"; do
+            if [ ! -f "$f" ]; then
+              echo "❌ Expected $f to exist after both runs" >&2
+              exit 1
+            fi
+          done
+          if [ "$FIRST_WHEEL" = "$SECOND_WHEEL" ]; then
+            echo "❌ Expected two distinct work directories (got $FIRST_WHEEL twice)" >&2
+            exit 1
+          fi
+          echo "✅ Both runs kept their files"
+
+  # The current code against the latest upstream twine and pyright. It runs on
+  # the schedule of ci.yaml only (the event of the calling workflow), so an
+  # upstream release cannot turn a pull request red. A failure is the signal
+  # that the pinned defaults need a bump.
+  test-latest-tools:
+    if: github.event_name == 'schedule'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+
+      - name: Verify Build
+        uses: ./
+        with:
+          package-name: myproject
+          twine-version: latest
+          pyright-version: latest

@@ -83,3 +83,49 @@ setup() {
 	run default_module_name "my-pkg.sub"
 	[ "$output" = "my_pkg_sub" ]
 }
+
+@test "log_error prints no annotation outside GitHub Actions (G11)" {
+	unset GITHUB_ACTIONS
+	run --separate-stderr log_error "boom"
+	[ "$stderr" = "❌ boom" ]
+	[ -z "$output" ]
+}
+
+@test "log_error prints an annotation under GitHub Actions (G11)" {
+	GITHUB_ACTIONS=true run --separate-stderr log_error "boom"
+	[ "$stderr" = "❌ boom" ]
+	[ "$output" = "::error::boom" ]
+}
+
+@test "is_dotted_identifier accepts module paths" {
+	run is_dotted_identifier "a"
+	[ "$status" -eq 0 ]
+	run is_dotted_identifier "my_pkg.sub_1.x"
+	[ "$status" -eq 0 ]
+	run is_dotted_identifier "_private"
+	[ "$status" -eq 0 ]
+}
+
+@test "is_dotted_identifier rejects regex and shell metacharacters (G5)" {
+	local value
+	for value in "" "a+b" "a(b" "a b" "1a" "a..b" ".a" "a." "a-b" 'a;b' 'a$b'; do
+		run is_dotted_identifier "$value"
+		[ "$status" -ne 0 ]
+	done
+}
+
+@test "is_version_spec accepts latest and versions" {
+	local value
+	for value in latest 1.2.3 1.1.414 7.0.0 2.0rc1 1.0.post1 1!2.0 1.0+local; do
+		run is_version_spec "$value"
+		[ "$status" -eq 0 ]
+	done
+}
+
+@test "is_version_spec rejects options and free text (G5)" {
+	local value
+	for value in "" "--index-url=x" "1.0 --foo" "twine==1" "v1" "1.0;rm" "latest "; do
+		run is_version_spec "$value"
+		[ "$status" -ne 0 ]
+	done
+}

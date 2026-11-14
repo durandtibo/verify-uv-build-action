@@ -54,7 +54,7 @@ show_field() {
 
 # Print the location of the imported module, or fail with the import error.
 import_location() {
-	python -c '
+	python -I -c '
 import importlib
 import sys
 

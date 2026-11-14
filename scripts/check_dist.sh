@@ -9,7 +9,10 @@
 #     - the version is not the placeholder 0.0.0
 #     - every requested extra is declared in `Provides-Extra` (PEP 685
 #       normalized)
-#     - the `<module path>/py.typed` marker is present (if check_types is true)
+#     - the `<module path>/py.typed` marker is present in a wheel (if
+#       check_types is true). It is not checked in an sdist: the wheel is
+#       built from the sdist, so a wheel with the marker proves the sdist
+#       ships it
 #   All failures are reported before the script exits.
 #
 # Usage:
@@ -22,15 +25,20 @@
 #                 by "_". A dot means a sub-package (a.b -> a/b/py.typed)
 #   extras        Comma-separated extras that must be defined. Default: none
 #   check_types   "true" (default) or "false". Whether py.typed is required
+#                 in a wheel (ignored for an sdist)
 #
 # Examples:
 #   ./check_dist.sh dist/pkg-1.0-py3-none-any.whl pkg
 #   ./check_dist.sh dist/pkg-1.0.tar.gz my-pkg my_pkg "numpy,pandas" true
 #
+# Functions (when sourced):
+#   read_version <archive> - print the Version of the core metadata
+#
 # Exit Codes:
 #   0 - All checks passed
 #   1 - A check failed, or the archive is missing or unreadable
-#   2 - Invalid arguments
+#   2 - Invalid arguments (including a module_name that is not a dotted
+#       identifier)
 
 set -euo pipefail
 
@@ -78,18 +86,23 @@ metadata_values() {
 	' <<<"$1"
 }
 
-# Check whether the archive contains <module path>/py.typed.
+# Check whether the wheel contains <module path>/py.typed.
 has_py_typed() {
 	local archive="$1"
 	local module_path="${2//.//}"
-	local pattern entries
-	case "${archive}" in
-	*.whl) pattern="^${module_path}/py\.typed$" ;;
-	*) pattern="^[^/]+/(.+/)?${module_path}/py\.typed$" ;;
-	esac
+	local entries
 	# Capture first: `grep -q` in a pipe can trigger SIGPIPE under pipefail
 	entries="$(list_archive "${archive}")"
-	grep -Eq "${pattern}" <<<"${entries}"
+	grep -Eq "^${module_path}/py\.typed\$" <<<"${entries}"
+}
+
+# Print the version of the archive, fail if it cannot be read.
+read_version() {
+	local metadata version
+	metadata="$(read_metadata "$1")" || return 1
+	version="$(metadata_values "${metadata}" "Version" | sed -n 1p)"
+	[ -n "${version}" ] || return 1
+	echo "${version}"
 }
 
 # Verify an archive. Prints one error line per failed check, returns 1 if any.
@@ -146,7 +159,7 @@ check_dist() {
 		fi
 	done < <(split_csv "${extras}")
 
-	if [ "${check_types}" = "true" ] && ! has_py_typed "${archive}" "${module_name}"; then
+	if [ "${check_types}" = "true" ] && [ "${archive}" = "${archive%.whl}.whl" ] && ! has_py_typed "${archive}" "${module_name}"; then
 		log_error "py.typed marker missing in ${archive} (expected ${module_name//.//}/py.typed)"
 		failures=$((failures + 1))
 	fi
@@ -159,6 +172,11 @@ check_dist() {
 
 main() {
 	if [ $# -lt 2 ] || [ $# -gt 5 ]; then
+		usage
+		exit 2
+	fi
+	if [ -n "${3:-}" ] && ! is_dotted_identifier "$3"; then
+		echo "Error: module_name must be a dotted identifier (got '$3')" >&2
 		usage
 		exit 2
 	fi

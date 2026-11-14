@@ -41,6 +41,5 @@ jobs:
           system_bash_dir="$(mktemp -d)"
           ln -s /bin/bash "$system_bash_dir/bash"
           PATH="$system_bash_dir:$PATH" bash --version | head -n 1
-          PATH="$system_bash_dir:$PATH" bats --version
-          PATH="$system_bash_dir:$PATH" bats --recursive tests/bats
+          PATH="$system_bash_dir:$PATH" make test-shell
           echo "✅ All tests passed with the system bash on ${{ matrix.os }}"
