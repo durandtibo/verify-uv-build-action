@@ -1,6 +1,10 @@
 # Workflow testing the action from the current repository code (uses: ./)
 # across the Python/OS matrix, with every package extra, and checks that each
 # failure mode really fails (and each edge case really passes).
+#
+# nightly-test-released.yaml mirrors this file for the last release, and
+# tests/bats/test_workflow_mirror.bats keeps the two aligned. The jobs that test
+# a feature the last release does not have yet are listed in that test.
 
 name: Test Action
 
@@ -198,3 +202,24 @@ jobs:
             exit 1
           fi
           echo "✅ Both runs kept their files"
+
+  # The current code against the latest upstream twine and pyright. It runs on
+  # the schedule of ci.yaml only (the event of the calling workflow), so an
+  # upstream release cannot turn a pull request red. A failure is the signal
+  # that the pinned defaults need a bump.
+  test-latest-tools:
+    if: github.event_name == 'schedule'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+
+      - name: Verify Build
+        uses: ./
+        with:
+          package-name: myproject
+          twine-version: latest
+          pyright-version: latest

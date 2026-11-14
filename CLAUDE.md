@@ -76,8 +76,12 @@ Files are prefixed by role:
     edge cases of `tests/cases.json` (one row per case: inputs, optional `setup` snippet, expected
     outcome). `scripts/load-cases.sh` turns the table into a matrix. Add a case as a new row.
 - `nightly.yaml`: nightly entry point (schedule and manual runs) that calls
-  `nightly-test-released.yaml`, which runs the same checks as `ci-action.yaml` against the latest
-  released action. Update its pinned release when a new version is released.
+  `nightly-test-released.yaml`, a mirror of `ci-action.yaml` that runs the cases flagged
+  `"released": true` in `tests/cases.json` against the latest released action.
+  `tests/bats/test_workflow_mirror.bats` fails when the two drift: change `ci-action.yaml` first,
+  then mirror it. On a release, bump the pinned SHA, flip the `released` flags and shrink the
+  allow-list of that test. The `test-latest-tools` job of `ci-action.yaml` (latest twine and
+  pyright) only runs on the schedule of `ci.yaml`.
 - `ci-verify-workflows.yaml`: lints the workflow files themselves. It has its own triggers and is not
   called from `ci.yaml`, so it can be a required check.
 - `lib-get-test-matrix.yaml`, `lib-get-package-extras.yaml`: reusable workflows that load the shared
