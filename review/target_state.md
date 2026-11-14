@@ -18,7 +18,7 @@ against one of them. They extend the rules already in `CLAUDE.md` and `README.md
 | P5  | Fast                    | One build, one install, tools run through `uvx` (cached, isolated). No tool is installed into the environment under test. Cheap archive checks run before the install.                                  |
 | P6  | Simple to maintain      | Few steps in `action.yaml`, three scripts plus one shared library, each small and unit tested. No logic duplicated between wheel and sdist.                                                              |
 | P7  | Safe                    | Inputs reach scripts only through `env:` and are never interpolated into shell or Python source. Third-party actions are pinned to SHAs. Least-privilege permissions.                                    |
-| P8  | Portable                | Works on `ubuntu`, `macos` and `windows` runners with bash (Git Bash on Windows), and on GNU and BSD tools. Scripts also run locally.                                                                    |
+| P8  | Portable                | Works on `ubuntu` and `macos` runners, and on GNU and BSD tools. Windows is out of scope. Scripts also run locally.                                                                                     |
 | P9  | Non-polluting           | Leaves no state for later steps of the caller's job: no `WHEEL_PATH`-style env vars, no `.venv`, no extra files in the workspace. Results are exposed through step outputs.                              |
 | P10 | Actionable diagnostics  | One `❌` line says what failed and what was expected, with the observed value. Details (file listings, metadata) are in collapsed log groups.                                                           |
 | P11 | Stable, versioned       | Inputs and outputs are a public API. Releases are immutable exact tags. Breaking changes are announced in the release notes and the README.                                                              |
@@ -56,7 +56,7 @@ misleading, **L** = maintenance cost.
 | F11 | M   | An sdist already contains `PKG-INFO` with `Provides-Extra:` (core metadata). `verify_sdist_extras.sh` (433 lines) re-implements a TOML and `setup.cfg` parser in awk instead. It cannot handle `dynamic` extras or a build backend that generates them.                   | `verify_sdist_extras.sh`                    |
 | F12 | L   | `verify_wheel_extras.sh` and `verify_sdist_extras.sh` duplicate `usage`, `parse_requested_extras`, `display_extras`, `verify_extras`, colour codes (737 lines, 1189 lines of tests). Raw ANSI codes are printed in CI logs. `verify_wheel` uses `#!/bin/bash`.              |                                             |
 | F13 | L   | `verify-wheel-extra` and `verify-sdist-extra` are toggles for checks that cost milliseconds and that no valid project needs to disable. They exist for one reason: a test (`incorrect-extra-skip`). When `package-extra` is empty there is nothing to verify anyway.     | `action.yaml`, README                       |
-| F14 | L   | The README is out of date: the feature list promises "optional scripts for project-specific needs" (no such input), the steps list omits the extras, dependency and tree checks, and the examples use `@v0.0.7` while `CLAUDE.md` documents releases like `v1.9`.          | `README.md`                                 |
+| F14 | L   | The README is out of date: the feature list promises "optional scripts for project-specific needs" (no such input), the steps list omits the extras, dependency and tree checks, and the examples use `@v0.0.7` while `CLAUDE.md` documents exact tags like `v1.9`.        | `README.md`                                 |
 | F15 | L   | `tests/package_checks.py` is not run by anything and is not an input of the action. It is dead code, referenced only by `CLAUDE.md`.                                                                                                                                      | `tests/package_checks.py`                   |
 | F16 | L   | `ci-action.yaml` repeats a 25-line block four times for the "must fail" cases. Adding a failure case means copy-paste.                                                                                                                                                    | `ci-action.yaml`                            |
 | F17 | L   | No way to build a project that is not at the repository root (monorepo). No outputs. The `dist-type` matrix is the only way to test both artifacts, and it rebuilds each time.                                                                                           | `action.yaml`                               |
@@ -64,7 +64,7 @@ misleading, **L** = maintenance cost.
 
 ## 3. Target state
 
-### 3.1 Inputs (public API, v1)
+### 3.1 Inputs (public API, v0.1.0)
 
 | Input               | Required | Default | Change vs current                                                                                                                                         |
 | ------------------- | -------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -75,6 +75,8 @@ misleading, **L** = maintenance cost.
 | `dist-type`         | no       | `wheel` | Unchanged. Selects the artifact that is **installed** and tested. Both artifacts are always built and inspected.                                          |
 | `python-version`    | no       | `3.13`  | Unchanged.                                                                                                                                                |
 | `project-path`      | no       | `.`     | **New.** Directory containing `pyproject.toml` (monorepos). Passed to `uv build`. Fixes F17.                                                              |
+| `twine-version`     | no       | pinned  | **New.** Version of twine used by `twine check`. The default is the version this release was tested with (e.g. `7.0.0`). |
+| `pyright-version`   | no       | pinned  | **New.** Version of pyright used by `--verifytypes`. The default is the version this release was tested with. Ignored when `check-types` is `false`. |
 | `check-types`       | no       | `true`  | **New.** Runs the `py.typed` marker check and `pyright --verifytypes`. Set `false` for projects that are intentionally untyped. Replaces mandatory typing. |
 
 Removed: `verify-wheel-extra`, `verify-sdist-extra` (F13). Extras are always verified, in both
@@ -120,10 +122,13 @@ Behaviour decisions:
   `module.__file__` lies under the venv. A flat-layout project that accidentally imports itself
   from the checkout now fails.
 - **No silent skip** (F3). `twine` and `pyright` run through `uvx`. A network failure is a failure.
-- **Tool versions**: unpinned (latest) for `twine` and `pyright`. This tool exists to catch
-  problems with current ecosystem rules, and `uvx` caches them. Trade-off: an upstream release can
-  turn CI red. Mitigation: the nightly run on `main` surfaces it before users do. If this proves
-  noisy, pin both in one `env:` block at the top of `action.yaml`.
+- **Tool versions are pinned and configurable.** `twine-version` and `pyright-version` are inputs
+  with a pinned default (the versions the release was tested with), run as
+  `uvx twine@<version>` and `uvx pyright@<version>`. A new upstream release cannot turn a caller's
+  CI red, and a caller can override the version. The same pattern is used in
+  `durandtibo/build-pypi-package-action` (`twine-version`). Defaults are bumped in their own PR
+  (for example quarterly), and the nightly run is the signal that a bump is due. Optional later:
+  a `twine-exclude-newer`-style input for reproducible dependency resolution.
 - **`--no-sources`**: not used by default. Documented as the next candidate, because it checks that
   the build does not depend on `[tool.uv.sources]`, but it breaks legitimate setups. Decision in
   section 6.
@@ -219,7 +224,7 @@ README rewritten to match the properties and this document:
 
 1. Title, badges, one-paragraph purpose (P1).
 2. "What is verified" table: check, applies to (wheel, sdist, install), failure message.
-3. Quick start: three lines, using an exact release tag with a SHA pin example (`v1.0.0`), consistent
+3. Quick start: three lines, using an exact release tag with a SHA pin example (`v0.1.0`), consistent
    with `CLAUDE.md`. No floating tags.
 4. Inputs and outputs tables (section 3.1, 3.2), identical to `action.yaml`.
 5. Matrix example (OS x Python x dist-type) and a "monorepo" example with `project-path`.
@@ -239,8 +244,6 @@ pins: `ci.yaml`, `ci-format.yaml`, `ci-shell.yaml`, `ci-verify-workflows.yaml`, 
 Changes:
 
 - `ci-action.yaml`: as in 3.6.
-- `ci-shell.yaml`: add `windows-latest` to the bats matrix only if Windows support (P8) is
-  confirmed. See section 6.
 - `nightly-test-released.yaml`: same new job list, pointing to the latest release. Updated with each
   release as today.
 - Add one `make test-shell` target (`bats tests/bats/`) and call it from `ci-shell.yaml`, so CI and
@@ -249,7 +252,8 @@ Changes:
 
 ## 4. Breaking changes and migration
 
-Release as `v1.0.0` (an exact tag, no floating tag).
+Release as `v0.1.0` (an exact tag, no floating tag). The project stays in 0.x, so the API may
+still change.
 
 | Change                                                               | Who is affected                          | Migration                                                          |
 | -------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------ |
@@ -279,12 +283,8 @@ Release as `v1.0.0` (an exact tag, no floating tag).
 
 ## 6. Open decisions
 
-1. **`--no-sources`**: recommend adding it behind a `build-args`-style opt-in later, not in v1.0.
-2. **Windows**: P8 lists it, but bash scripts on Windows have not been tested here. Recommendation:
-   add `windows-latest` to the `ci-action.yaml` matrix in the first PR. If it fails for reasons
-   outside the action, drop the claim from P8 and document Linux and macOS only.
-3. **Tool pinning** for `twine` and `pyright` (section 3.3): recommend unpinned.
-4. **Single `check_dist.sh` vs two scripts** (wheel, sdist): recommend a single script, since the
+1. **`--no-sources`**: recommend adding it behind a `build-args`-style opt-in later, not in v0.1.0.
+2. **Single `check_dist.sh` vs two scripts** (wheel, sdist): recommend a single script, since the
    only difference is how the metadata file is read (one `case` on the extension).
 
 ## 7. Implementation order
@@ -300,8 +300,8 @@ PR descriptions must say so.
 | 3   | `refactor/check-install`              | `check_install.sh` replaces `check_metadata.sh` and `check_dependency_tree.sh`.               | F6, F8, F9                 |
 | 4   | `feat/isolated-build-and-checks`      | Rewrite `action.yaml` to the 7 steps: temp dirs, venv, outputs, `uvx`, hard failures, new inputs, removed toggles. Rename `check_type.sh` to `check_types.sh`. | F1, F2, F3, F4, F7, F13, F17, F18 |
 | 5   | `test/failure-matrix`                 | Collapse failure jobs into one matrix, add regression cases, add project-path and no-types jobs. Delete `tests/package_checks.py`. | F15, F16                   |
-| 6   | `docs/readme-v1`                      | README, CONTRIBUTING and `CLAUDE.md` updates, migration guide.                                | F14                        |
-| 7   | `chore/release-v1`                    | Tag `v1.0.0`, bump the pin in `nightly-test-released.yaml`.                                   | P11                        |
+| 6   | `docs/readme-v0-1-0`                    | README, CONTRIBUTING and `CLAUDE.md` updates, migration guide.                                | F14                        |
+| 7   | `chore/release-v0-1-0`               | Tag `v0.1.0`, bump the pin in `nightly-test-released.yaml`.                                   | P11                        |
 
 PRs 2 and 3 can ship in the current action (script-level, same calling convention) so that the
 action works at every step. PR 4 is the only one that breaks the public API.
