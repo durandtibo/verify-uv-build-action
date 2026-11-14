@@ -221,8 +221,9 @@ Changes:
 
 - `ci-action.yaml` gets a boolean input `released` (default `false`), the pattern used in
   `durandtibo/sign-pypi-package-action`. Each job that runs the action has two steps with the same
-  `with:`: `uses: ./` with `if: ${{ !inputs.released }}`, and `uses: durandtibo/verify-uv-build-action@<sha> # ratchet:...@v0.1.0`
-  with `if: ${{ inputs.released }}`. The released step is pinned to a SHA like every other third-party
+  `with:`: `uses: ./` with `if: ${{ !inputs.released }}`, and
+  `uses: durandtibo/verify-uv-build-action@<sha> # ratchet:...@v0.1.0` with
+  `if: ${{ inputs.released }}`. The released step is pinned to a SHA like every other third-party
   action, so `bot-pin-action.yaml` and the supply-chain rules apply unchanged.
 - Test rows that the released version does not support yet are excluded when `released` is true.
   Each row of the `test-cases` matrix gets a `released: true` key when the last release supports it,
