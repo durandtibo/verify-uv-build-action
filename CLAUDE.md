@@ -67,11 +67,13 @@ Files are prefixed by role:
 - `ci.yaml`: entry point for pull requests, pushes to `main`, a nightly schedule and manual runs. It
   holds no steps, only jobs that call the reusable `ci-*.yaml` workflows below.
   - `ci-format.yaml`: shell, Markdown and YAML lint/format checks.
-  - `ci-test-shell.yaml`: bats tests on the OS matrix.
-  - `ci-test-local.yaml`: runs the action from this checkout (`uses: ./`), i.e. the version not
+  - `ci-shell.yaml`: bats tests on the OS matrix.
+  - `ci-action.yaml`: runs the action from this checkout (`uses: ./`), i.e. the version not
     released yet, across the Python/OS matrix with every package extra, and checks that invalid
     inputs fail as expected.
-  - `ci-test-stable.yaml`: same checks against the latest released action.
+- `nightly.yaml`: nightly entry point (schedule and manual runs) that calls
+  `nightly-test-released.yaml`, which runs the same checks as `ci-action.yaml` against the latest
+  released action. Update its pinned release when a new version is released.
 - `ci-verify-workflows.yaml`: lints the workflow files themselves. It has its own triggers and is not
   called from `ci.yaml`, so it can be a required check.
 - `lib-get-test-matrix.yaml`, `lib-get-package-extras.yaml`: reusable workflows that load the shared
@@ -84,8 +86,9 @@ Conventions:
 
 - Set `permissions` on every job (including jobs that call a reusable workflow). Every workflow
   has `permissions: {}` at the workflow level (it grants nothing), never a grant.
-- Each `ci-*` check is a `workflow_call` workflow that also has `workflow_dispatch`, so it can be run
-  alone. Add a new check as a new `ci-<name>.yaml` plus a job in `ci.yaml`.
+- Each `ci-*` and `nightly-test-*` check is a `workflow_call` workflow that also has
+  `workflow_dispatch`, so it can be run alone.
+  Add a new check as a new `ci-<name>.yaml` plus a job in `ci.yaml`.
 - Put `make` targets in the steps rather than duplicating commands, so local runs and CI match.
 - Start each file with a comment saying what it does, and update it when the behaviour changes.
 
@@ -97,7 +100,7 @@ Conventions:
 - Cover success, failure, and edge cases (missing extras, empty lists, missing or invalid files).
 - Every bug fix needs a regression test that fails without the fix.
 - If a check fails for a real reason, report it rather than weakening the test.
-- Changes to `action.yaml` behaviour are covered by the `ci-test-local.yaml` matrix; extend it when
+- Changes to `action.yaml` behaviour are covered by the `ci-action.yaml` matrix; extend it when
   adding an input or a check.
 
 ## Reporting

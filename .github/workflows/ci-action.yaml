@@ -1,8 +1,8 @@
-# Local action test workflow.
-# Runs the action from this checkout (uses: ./) across the Python/OS matrix,
-# with every package extra, and checks that invalid inputs fail as expected.
+# Workflow testing the action from the current repository code (uses: ./)
+# across the Python/OS matrix, with every package extra, and checks that
+# invalid inputs fail as expected.
 
-name: Test Local Action
+name: Test Action
 
 on:
   workflow_call:
@@ -12,17 +12,20 @@ on:
         required: true
         type: string
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   # Load the extras from pyproject.toml, plus "" for a baseline "no extra" build.
   get-extras:
+    permissions:
+      contents: read
     uses: ./.github/workflows/lib-get-package-extras.yaml
     with:
       extra-values: '[""]'
 
   test:
+    permissions:
+      contents: read
     runs-on: ${{ matrix.os }}
     timeout-minutes: 5
     strategy:
@@ -43,6 +46,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
   test-extra:
+    permissions:
+      contents: read
     needs: get-extras
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -70,6 +75,8 @@ jobs:
   #################################
 
   invalid-dist-type:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 5
@@ -96,6 +103,8 @@ jobs:
         run: echo "✅ Test passed - step failed as expected"
 
   missing-py-typed:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 5
@@ -126,6 +135,8 @@ jobs:
         run: echo "✅ Test passed - step failed as expected"
 
   incorrect-extra:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 5
@@ -153,6 +164,8 @@ jobs:
         run: echo "✅ Test passed - step failed as expected"
 
   incorrect-extra-skip:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     continue-on-error: true
     outputs:

@@ -160,10 +160,11 @@ The action includes comprehensive test workflows:
 The repository includes several test workflows:
 
 - **CI (`ci.yaml`)**: Runs on all pull requests and pushes to main
-- **Format (`format.yaml`)**: Validates Markdown and YAML formatting
-- **Test Local (`test-local.yaml`)**: Tests the action using local code
-- **Test Stable (`test-stable.yaml`)**: Tests the latest stable release
-- **Nightly Tests (`nightly-tests.yaml`)**: Runs tests daily
+- **Format (`ci-format.yaml`)**: Validates shell, Markdown and YAML formatting
+- **Shell Unit Tests (`ci-shell.yaml`)**: Runs the bats tests on multiple OS
+- **Test Action (`ci-action.yaml`)**: Tests the action using local code
+- **Nightly Tests (`nightly.yaml`)**: Tests the latest released action daily
+  (`nightly-test-released.yaml`)
 
 To trigger tests:
 

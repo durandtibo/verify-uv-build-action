@@ -1,5 +1,5 @@
 # Formatting and linting workflow.
-# Checks shell, Markdown, and YAML files follow the project style guidelines.
+# Checks the Markdown, shell and YAML files of the repository.
 # Each check runs through the Makefile, so it can be reproduced locally.
 
 name: Format
@@ -7,29 +7,12 @@ on:
   workflow_call:
   workflow_dispatch: # to trigger manually
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
-  shell:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
-
-      # make lint-shell/check-format-shell use `xargs -r`, so they no-op
-      # cleanly when the repo has no shell scripts.
-      - name: Check shell formatting
-        run: |
-          make check-format-shell
-
-      - name: Lint shell scripts
-        run: |
-          make lint-shell
-
-  markdown:
+  format:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -41,13 +24,13 @@ jobs:
         run: |
           make lint-markdown
 
-  yaml:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+      - name: Check shell formatting
+        run: |
+          make check-format-shell
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+      - name: Lint shell scripts
+        run: |
+          make lint-shell
 
       - name: Lint YAML files
         run: |
