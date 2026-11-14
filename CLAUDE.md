@@ -10,7 +10,7 @@ and dependencies, dependency tree, import and version, and type completeness (py
 checks that need real logic live in `scripts/*.sh` (bash, must work on GNU/Linux and BSD/macOS) and
 are tested with [bats](https://github.com/bats-core/bats-core) in `tests/bats/`.
 
-`src/myproject/`, `pyproject.toml` and `tests/package_checks.py` are a small dummy Python package
+`src/myproject/` and `pyproject.toml` are a small dummy Python package
 used as the fixture that the action builds and verifies in CI. They are not part of the action. The
 `dist/` directory holds local build output and is git-ignored.
 

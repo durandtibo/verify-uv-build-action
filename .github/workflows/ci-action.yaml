@@ -1,6 +1,6 @@
 # Workflow testing the action from the current repository code (uses: ./)
-# across the Python/OS matrix, with every package extra, and checks that
-# invalid inputs fail as expected.
+# across the Python/OS matrix, with every package extra, and checks that each
+# failure mode really fails (and each edge case really passes).
 
 name: Test Action
 
@@ -70,95 +70,128 @@ jobs:
           package-extra: ${{ matrix.package-extra }}
           package-dependencies: coola
 
-  #################################
-  #     Tests to check inputs     #
-  #################################
+  #####################################
+  #     Tests of failures and cases     #
+  #####################################
 
-  invalid-dist-type:
+  # Each entry optionally breaks the fixture with `setup`, runs the action with
+  # the given inputs, and asserts that the outcome is `expect`.
+  test-cases:
     permissions:
       contents: read
     runs-on: ubuntu-latest
-    continue-on-error: true
     timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: invalid dist-type
+            expect: failure
+            dist-type: tar
+          - name: invalid check-types
+            expect: failure
+            check-types: "maybe"
+          - name: missing project-path
+            expect: failure
+            project-path: does/not/exist
+          - name: invalid package-name
+            expect: failure
+            package-name: "my project"
+          - name: missing py.typed
+            expect: failure
+            setup: rm src/myproject/py.typed
+          - name: unknown extra
+            expect: failure
+            package-extra: missing
+          - name: missing dependency
+            expect: failure
+            package-dependencies: not-a-dependency
+          - name: wrong package-name
+            expect: failure
+            package-name: other-project
+          - name: wrong module-name
+            expect: failure
+            module-name: other_module
+          # Regression F1: a copy of the module in the checkout must not hide a
+          # wheel that does not contain it.
+          - name: flat layout imports from source
+            expect: failure
+            check-types: "false"
+            setup: |
+              cp -r src/myproject myproject
+              printf '\n[tool.hatch.build.targets.wheel]\nonly-include = ["README.md"]\n' >> pyproject.toml
+          # Regression F2: a stale dist/ in the checkout must be ignored.
+          - name: stale dist directory
+            expect: success
+            setup: |
+              mkdir dist
+              echo "not a wheel" > dist/myproject-0.0.0-py3-none-any.whl
+              echo "not an sdist" > dist/myproject-0.0.0.tar.gz
+          - name: extra and sdist
+            expect: success
+            dist-type: sdist
+            package-extra: all
+          - name: check-types false without py.typed
+            expect: success
+            check-types: "false"
+            setup: rm src/myproject/py.typed
+          - name: project-path
+            expect: success
+            project-path: sub/dir
+            setup: |
+              mkdir -p sub/dir
+              cp -r pyproject.toml README.md LICENSE src sub/dir
+              rm -rf pyproject.toml src
+
+    name: ${{ matrix.name }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
 
-      - name: Call composite action with invalid value
-        id: run_action
-        uses: ./
-        with:
-          dist-type: tar
-          package-name: myproject
-        continue-on-error: true
-
-      - name: Failure - it did not fail as expected
-        if: steps.run_action.outcome != 'failure'
-        run: |
-          echo "❌ Error: Step should have failed but didn't!"
-          exit 1
-
-      - name: Success - it failed as expected
-        if: steps.run_action.outcome == 'failure'
-        run: echo "✅ Test passed - step failed as expected"
-
-  missing-py-typed:
-    permissions:
-      contents: read
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    timeout-minutes: 5
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
-
-      - name: Remove py.typed
-        run: |
-          rm src/myproject/py.typed
+      - name: Break the fixture
+        if: ${{ matrix.setup != '' }}
+        env:
+          SETUP: ${{ matrix.setup }}
+        run: bash -euo pipefail -c "$SETUP"
 
       - name: Call composite action
         id: run_action
         uses: ./
         with:
-          package-name: myproject
+          package-name: ${{ matrix.package-name || 'myproject' }}
+          module-name: ${{ matrix.module-name }}
+          package-extra: ${{ matrix.package-extra }}
+          package-dependencies: ${{ matrix.package-dependencies }}
+          dist-type: ${{ matrix.dist-type || 'wheel' }}
+          check-types: ${{ matrix.check-types || 'true' }}
+          project-path: ${{ matrix.project-path || '.' }}
         continue-on-error: true
 
-      - name: Failure - it did not fail as expected
-        if: steps.run_action.outcome != 'failure'
+      - name: Check the outcome
+        env:
+          EXPECTED: ${{ matrix.expect }}
+          OUTCOME: ${{ steps.run_action.outcome }}
         run: |
-          echo "❌ Error: Step should have failed but didn't!"
-          exit 1
+          set -euo pipefail
+          if [ "$OUTCOME" != "$EXPECTED" ]; then
+            echo "❌ Expected the action to end with '$EXPECTED' but got '$OUTCOME'" >&2
+            exit 1
+          fi
+          echo "✅ The action ended with '$OUTCOME' as expected"
 
-      - name: Success - it failed as expected
-        if: steps.run_action.outcome == 'failure'
-        run: echo "✅ Test passed - step failed as expected"
-
-  incorrect-extra:
+  # Checks that the tool version inputs are wired to uvx.
+  test-tool-versions:
     permissions:
       contents: read
     runs-on: ubuntu-latest
-    continue-on-error: true
     timeout-minutes: 5
-
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
 
-      - name: Call composite action
-        id: run_action
+      - name: Verify Build
         uses: ./
         with:
           package-name: myproject
-          package-extra: missing
-        continue-on-error: true
-
-      - name: Failure - it did not fail as expected
-        if: steps.run_action.outcome != 'failure'
-        run: |
-          echo "❌ Error: Step should have failed but didn't!"
-          exit 1
-
-      - name: Success - it failed as expected
-        if: steps.run_action.outcome == 'failure'
-        run: echo "✅ Test passed - step failed as expected"
+          twine-version: 6.2.0
+          pyright-version: 1.1.413

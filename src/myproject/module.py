@@ -4,6 +4,7 @@ from __future__ import annotations
 
 __all__ = ["my_function"]
 
+
 def my_function(name: str) -> str:
     r"""Return Hello World message.
 
@@ -13,4 +14,4 @@ def my_function(name: str) -> str:
     Returns:
         Hello World message.
     """
-    return f'Hello {name}!'
+    return f"Hello {name}!"
