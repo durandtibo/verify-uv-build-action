@@ -74,7 +74,7 @@ check_install() {
 
 	[ -n "${module_name}" ] || module_name="$(default_module_name "${package_name}")"
 
-	if ! info="$(uv pip show "${package_name}")"; then
+	if ! info="$(uv pip show --no-config "${package_name}")"; then
 		log_error "package not installed (expected ${package_name}, got nothing from uv pip show)"
 		return 1
 	fi

@@ -26,8 +26,14 @@
   },
   {"name": "tool.uv.sources is ignored", "expect": "success", "setup": "printf '\\n[tool.uv.sources]\\ncoola = { path = \"/does/not/exist\" }\\n' >> pyproject.toml"},
   {
-    "name": "project uv config is ignored",
-    "comment": "Regression G2: the install must not read the project's [tool.uv].",
+    "name": "project uv config is ignored by the install",
+    "comment": "Regression H1: [tool.uv] exclude-newer makes the dependency unresolvable if the install reads it; the build has no dependency to resolve.",
+    "expect": "success",
+    "setup": "printf '\\n[tool.uv]\\nexclude-newer = \"2000-01-01T00:00:00Z\"\\n' >> pyproject.toml"
+  },
+  {
+    "name": "project uv config is ignored by the build",
+    "comment": "Regression H1: an unreachable index-url in [tool.uv] must not be used to fetch build-system.requires.",
     "expect": "success",
     "setup": "printf '\\n[tool.uv]\\nindex-url = \"http://127.0.0.1:9/simple\"\\n' >> pyproject.toml"
   },

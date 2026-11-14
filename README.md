@@ -9,23 +9,23 @@ checks the built files and a clean install, never the source tree.
 
 ## What is verified
 
-| Check                                                               | Wheel | Sdist | Install |
-| ------------------------------------------------------------------- | :---: | :---: | :-----: |
-| Exactly one wheel and one sdist are built (`uv build --no-sources`) |  ✅   |  ✅   |         |
-| Distribution name matches `package-name` (normalized)               |  ✅   |  ✅   |   ✅    |
-| Version is not the placeholder `0.0.0`                              |  ✅   |  ✅   |   ✅    |
-| Installed version equals the built wheel version                    |       |       |   ✅    |
-| Every `package-extra` is in `Provides-Extra`                        |  ✅   |  ✅   |         |
-| `<module>/py.typed` is present in the wheel (if `check-types`)      |  ✅   |       |         |
-| Wheel and sdist have the same version                               |  ✅   |  ✅   |         |
-| `twine check --strict`                                              |  ✅   |  ✅   |         |
-| Every `package-dependencies` entry is installed                     |       |       |   ✅    |
-| The module imports from `site-packages`, run outside the checkout   |       |       |   ✅    |
-| Type completeness with `pyright --verifytypes` (if `check-types`)   |       |       |   ✅    |
+| Check                                                                           | Wheel | Sdist | Install |
+| ------------------------------------------------------------------------------- | :---: | :---: | :-----: |
+| Exactly one wheel and one sdist are built (`uv build --no-config --no-sources`) |  ✅   |  ✅   |         |
+| Distribution name matches `package-name` (normalized)                           |  ✅   |  ✅   |   ✅    |
+| Version is not the placeholder `0.0.0`                                          |  ✅   |  ✅   |   ✅    |
+| Installed version equals the built wheel version                                |       |       |   ✅    |
+| Every `package-extra` is in `Provides-Extra`                                    |  ✅   |  ✅   |         |
+| `<module>/py.typed` is present in the wheel (if `check-types`)                  |  ✅   |       |         |
+| Wheel and sdist have the same version                                           |  ✅   |  ✅   |         |
+| `twine check --strict`                                                          |  ✅   |  ✅   |         |
+| Every `package-dependencies` entry is installed                                 |       |       |   ✅    |
+| The module imports from `site-packages`, run outside the checkout               |       |       |   ✅    |
+| Type completeness with `pyright --verifytypes` (if `check-types`)               |       |       |   ✅    |
 
 Checks run in a fail-fast order: input validation, archive checks (milliseconds), install, then
 checks that need an environment. By default (`dist-type: both`) the wheel and the sdist are each
-installed in their own environment; the install runs outside the workspace, so the project's
+installed in their own environment; the build and the install pass `--no-config`, so the project's
 `[tool.uv]` and `uv.toml` are not read (set `UV_INDEX_URL` or another `UV_*` variable in the job
 environment if the install needs a custom index). A check that cannot run is a failure, never a
 skip. Artifacts and the virtual environments live in `$RUNNER_TEMP`: the workspace is not modified
@@ -36,14 +36,14 @@ and no environment variable is exported to later steps. Only Linux and macOS run
 `scripts/verify.sh` runs six phases, each in a collapsed log group, and stops at the first phase
 that fails. Every failure of a phase is reported before it stops.
 
-| #   | Phase          | What it does                                                                       |
-| --- | -------------- | ---------------------------------------------------------------------------------- |
-| 1   | Validate       | Checks every input (exit 2 with all errors).                                       |
-| 2   | Build          | `uv build --no-sources` into a new directory, one wheel and one sdist expected.    |
-| 3   | Check archives | Metadata of both archives, same version, `twine check --strict`.                   |
-| 4   | Install        | Installs the wheel and/or the sdist (`dist-type`) in a venv outside the workspace. |
-| 5   | Check install  | Name, version, dependencies and import of each installed artifact.                 |
-| 6   | Check types    | `pyright --verifytypes` on the first installed artifact (if `check-types`).        |
+| #   | Phase          | What it does                                                                                |
+| --- | -------------- | ------------------------------------------------------------------------------------------- |
+| 1   | Validate       | Checks every input (exit 2 with all errors).                                                |
+| 2   | Build          | `uv build --no-config --no-sources` into a new directory, one wheel and one sdist expected. |
+| 3   | Check archives | Metadata of both archives, same version, `twine check --strict`.                            |
+| 4   | Install        | Installs the wheel and/or the sdist (`dist-type`) in a venv outside the workspace.          |
+| 5   | Check install  | Name, version, dependencies and import of each installed artifact.                          |
+| 6   | Check types    | `pyright --verifytypes` on the first installed artifact (if `check-types`).                 |
 
 ## Quick start
 
@@ -136,8 +136,8 @@ jobs:
 
 ## Requirements
 
-- A `pyproject.toml` compatible with `uv build`. The build uses `--no-sources`: it ignores
-  `[tool.uv.sources]`, so the project must build the way a user installing from PyPI gets it.
+- A `pyproject.toml` compatible with `uv build`. The build uses `--no-config --no-sources`: it ignores
+  `[tool.uv]`, `uv.toml` and `[tool.uv.sources]`, so the project must build the way a user installing from PyPI gets it.
 - For type checking: a `<module>/py.typed` marker in the package, or `check-types: false`.
 
 ## Troubleshooting
@@ -190,7 +190,7 @@ the collapsed log groups.
 | `module-name`, `twine-version` and `pyright-version` are validated          | Fix a malformed value.                                      |
 | Wheel and sdist must have the same version                                  | Fix the version source of the build.                        |
 | `py.typed` is checked in the wheel only                                     | None.                                                       |
-| The build uses `uv build --no-sources`                                      | Make the build work without `[tool.uv.sources]`.            |
+| The build uses `uv build --no-config --no-sources`                          | Make the build work without `[tool.uv.sources]`.            |
 | `twine check --strict`                                                      | Fix the metadata warnings.                                  |
 
 ## Run the checks locally

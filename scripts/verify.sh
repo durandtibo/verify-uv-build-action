@@ -6,13 +6,13 @@
 #   Entry point of the action, also usable locally. Phases, each in a log
 #   group, in a fail-fast order:
 #     1. validate the inputs (every invalid input is reported, exit 2)
-#     2. build with `uv build --no-sources` into a new work directory, check
+#     2. build with `uv build --no-config --no-sources` into a new work directory, check
 #        that there is exactly one wheel and one sdist
 #     3. check the archives: check_dist.sh on both, same version in both,
 #        `twine check --strict`
-#     4. install each selected artifact in its own venv, run from the work
-#        directory so the project configuration (`[tool.uv]`, `uv.toml`) is
-#        not read
+#     4. install each selected artifact in its own venv; every uv call uses
+#        `--no-config`, so the project configuration (`[tool.uv]`, `uv.toml`)
+#        is never read
 #     5. check_install.sh for each venv
 #     6. check_types.sh once, on the first installed artifact (if CHECK_TYPES)
 #   Every invocation gets its own work directory, which is never deleted, so
@@ -123,9 +123,10 @@ build_dists() {
 	local wheels sdists
 	mkdir -p "${dist_dir}"
 	echo "📦 Building package..."
-	# --no-sources ignores [tool.uv.sources]: the build resolves requirements
-	# like a user installing from PyPI.
-	if ! uv build "${PROJECT_PATH}" --no-sources --out-dir "${dist_dir}"; then
+	# --no-config ignores the project's [tool.uv] and uv.toml, --no-sources
+	# ignores [tool.uv.sources]: the build resolves requirements like a user
+	# installing from PyPI.
+	if ! uv build "${PROJECT_PATH}" --no-config --no-sources --out-dir "${dist_dir}"; then
 		log_error "uv build failed (expected a successful build, see output above)"
 		return 1
 	fi
@@ -171,15 +172,15 @@ check_archives() {
 	fi
 	[ "${status}" -eq 0 ] || return 1
 	echo "🔍 Running twine check..."
-	if ! (cd "${WORK}" && uvx "twine@${TWINE_VERSION}" check --strict "${WHEEL_PATH}" "${SDIST_PATH}"); then
+	if ! (cd "${WORK}" && uvx --no-config "twine@${TWINE_VERSION}" check --strict "${WHEEL_PATH}" "${SDIST_PATH}"); then
 		log_error "twine check failed (expected no error or warning, see output above)"
 		return 1
 	fi
 	log_ok "Artifact checks passed"
 }
 
-# Install one artifact in its own venv, from the work directory so that the
-# project configuration is not read.
+# Install one artifact in its own venv. --no-config makes uv ignore the
+# project configuration whatever the working directory.
 install_dist() {
 	local type="$1"
 	local venv="${WORK}/venv-${type}"
@@ -194,7 +195,7 @@ install_dist() {
 		target="${PACKAGE_NAME}[${extras}] @ file://${target}"
 	fi
 	echo "📦 Installing ${target}"
-	if ! (cd "${WORK}" && uv venv "${venv}" && VIRTUAL_ENV="${venv}" uv pip install "${target}"); then
+	if ! (uv venv --no-config "${venv}" && uv pip install --no-config --python "${venv}" "${target}"); then
 		log_error "Installation of the ${type} failed (expected ${target} to install, see output above)"
 		return 1
 	fi
