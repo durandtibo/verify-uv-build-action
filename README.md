@@ -1,7 +1,10 @@
 # verify-uv-build-action
 
-[![CI](https://github.com/durandtibo/verify-uv-build-action/actions/workflows/ci.yaml/badge.svg)](https://github.com/durandtibo/verify-uv-build-action/actions/workflows/ci.yaml)
-[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://github.com/durandtibo/verify-uv-build-action/blob/main/LICENSE)
+[![CI](https://github.com/durandtibo/verify-uv-build-actionn/actions/workflows/ci.yaml/badge.svg)](https://github.com/durandtibo/verify-uv-build-actionn/actions/workflows/ci.yaml)
+[![Nightly](https://github.com/durandtibo/verify-uv-build-actionn/actions/workflows/nightly.yaml/badge.svg)](https://github.com/durandtibo/verify-uv-build-actionn/actions/workflows/nightly.yaml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/durandtibo/verify-uv-build-actionn/badge)](https://scorecard.dev/viewer/?uri=github.com/durandtibo/verify-uv-build-actionn)
+[![License](https://img.shields.io/badge/license-BSD--3--Clause-blue)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/tag/durandtibo/verify-uv-build-actionn?label=release)](https://github.com/durandtibo/verify-uv-build-actionn/tags)
 
 A GitHub Action that builds a Python project with [uv](https://github.com/astral-sh/uv) and
 verifies that the **published artifacts** (the wheel and the sdist) are correct and usable. It
