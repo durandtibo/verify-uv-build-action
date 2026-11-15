@@ -58,6 +58,7 @@ JSON
 @test "default file loads and skipped rows are excluded" {
 	run bash "$SCRIPT" all
 	[ "$status" -eq 0 ]
-	[[ "$output" != *"project uv config is ignored"* ]]
+	[ "$(echo "$output" | jq 'any(.[]; has("skip"))')" = "false" ]
+	[ "$(echo "$output" | jq 'length')" -gt 0 ]
 	[[ "$output" == *"version is the placeholder"* ]]
 }

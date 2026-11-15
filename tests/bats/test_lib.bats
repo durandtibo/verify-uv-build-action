@@ -55,6 +55,7 @@ setup() {
 }
 
 @test "log_error prints a cross on stderr" {
+	unset GITHUB_ACTIONS REPORT_FILE
 	run --separate-stderr log_error "broken"
 	[ -z "$output" ]
 	[ "$stderr" = "❌ broken" ]

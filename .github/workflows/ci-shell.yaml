@@ -30,7 +30,16 @@ jobs:
 
       - name: Install bats-core
         shell: bash
-        run: make install-bats
+        # The apt package of Ubuntu 22.04 is bats 1.2.1 but the tests need >= 1.5
+        # (bats_require_minimum_version), so install a pinned release from source.
+        run: |
+          set -euo pipefail
+          if [ "$(uname -s)" = "Linux" ]; then
+            git clone --depth 1 --branch v1.11.1 https://github.com/bats-core/bats-core.git "$RUNNER_TEMP/bats-core"
+            sudo "$RUNNER_TEMP/bats-core/install.sh" /usr/local
+          else
+            make install-bats
+          fi
 
       - name: Show the versions of bash and bats
         run: |
