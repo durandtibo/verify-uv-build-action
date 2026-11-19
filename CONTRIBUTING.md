@@ -97,7 +97,8 @@ verify-uv-build-action/
 │   └── myproject/        # Example test package (fixture built in CI)
 ├── tests/
 │   ├── bats/             # Unit tests of the scripts, one file per script
-│   └── cases.json        # End-to-end cases of ci-action.yaml
+│   ├── cases.json        # End-to-end cases of ci-action.yaml
+│   └── check_action_case.sh # Assertions of ci-action.yaml, shared by the local and released runs
 ├── action.yaml           # Main action definition
 ├── Makefile             # Development commands
 ├── pyproject.toml       # Python project configuration
@@ -163,10 +164,11 @@ The repository includes several test workflows:
 - **CI (`ci.yaml`)**: Runs on all pull requests and pushes to main
 - **Format (`ci-format.yaml`)**: Validates shell, Markdown and YAML formatting
 - **Shell Unit Tests (`ci-shell.yaml`)**: Runs `make test-shell` (the bats tests) on multiple OS
-- **Test Action (`ci-action.yaml`)**: Tests the action using local code; the failure cases are
-  rows of `tests/cases.json`
-- **Nightly Tests (`nightly.yaml`)**: Tests the latest released action daily
-  (`nightly-test-released.yaml`)
+- **Test Action (`ci-action.yaml`)**: Tests the action in a real workflow. The input
+  `use-released` selects the action from this checkout (default) or the latest release; the
+  failure cases are rows of `tests/cases.json`
+- **Nightly Tests (`nightly.yaml`)**: Tests the latest released action daily (calls
+  `ci-action.yaml` with `use-released: true`)
 
 To trigger tests:
 

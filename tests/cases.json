@@ -1,6 +1,9 @@
 [
   {"name": "invalid dist-type", "expect": "failure", "dist-type": "tar", "released": true},
   {"name": "invalid check-types", "expect": "failure", "check-types": "maybe"},
+  {"name": "unknown python-version", "expect": "failure", "python-version": "2.0"},
+  {"name": "unknown twine-version", "expect": "failure", "twine-version": "0.0.0"},
+  {"name": "unknown pyright-version", "expect": "failure", "pyright-version": "0.0.0"},
   {"name": "missing project-path", "expect": "failure", "project-path": "does/not/exist"},
   {"name": "invalid package-name", "expect": "failure", "package-name": "my project"},
   {"name": "missing py.typed", "expect": "failure", "setup": "rm src/myproject/py.typed", "released": true},

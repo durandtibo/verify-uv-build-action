@@ -83,17 +83,20 @@ Files are prefixed by role:
   - `ci-format.yaml`: shell, Markdown and YAML lint/format checks.
   - `ci-shell.yaml`: bats tests on the OS matrix.
   - `ci-shell-bash32.yaml`: bats tests on macOS with the system bash 3.2.
-  - `ci-action.yaml`: runs the action from this checkout (`uses: ./`), i.e. the version not
-    released yet, across the Python/OS matrix with every package extra, and runs the failure and
-    edge cases of `tests/cases.json` (one row per case: inputs, optional `setup` snippet, expected
-    outcome). `scripts/load-cases.sh` turns the table into a matrix. Add a case as a new row.
-- `nightly.yaml`: nightly entry point (schedule and manual runs) that calls
-  `nightly-test-released.yaml`, a mirror of `ci-action.yaml` that runs the cases flagged
-  `"released": true` in `tests/cases.json` against the latest released action.
-  `tests/bats/test_workflow_mirror.bats` fails when the two drift: change `ci-action.yaml` first,
-  then mirror it. On a release, bump the pinned SHA, flip the `released` flags and shrink the
-  allow-list of that test. The `test-latest-tools` job of `ci-action.yaml` (latest twine and
-  pyright) only runs on the schedule of `ci.yaml`.
+  - `ci-action.yaml`: one file that tests both versions of the action, selected by the boolean
+    input `use-released` (default `false`). `ci.yaml` calls it with `false`: the action from this
+    checkout (`uses: ./`), i.e. the version not released yet. General behaviour (`test`) runs on
+    the Python/OS matrix; the edge cases run on one runner: every package extra, and the failure
+    and edge cases of `tests/cases.json` (one row per case: inputs, optional `setup` snippet,
+    expected outcome). Add a case as a new row. The `test-latest-tools` job (latest twine and
+    pyright) only runs on the schedule of `ci.yaml`.
+- `nightly.yaml`: nightly entry point (schedule and manual runs) that calls `ci-action.yaml` with
+  `use-released: true`, which runs the latest released action (pinned SHA) with the rows flagged
+  `"released": true` in `tests/cases.json`. On a release, bump the pinned SHA (every
+  `durandtibo/verify-uv-build-action@` line of `ci-action.yaml`), flip the `released` flags, give
+  the released steps the new inputs and remove the `if: ${{ !inputs.use-released }}` of the jobs
+  that only ran on the local action. `tests/check_action_case.sh` holds the assertions shared by
+  the local and released runs.
 - `ci-verify-workflows.yaml`: lints the workflow files themselves. It has its own triggers and is not
   called from `ci.yaml`, so it can be a required check.
 - `lib-get-test-matrix.yaml`, `lib-get-package-extras.yaml`: reusable workflows that load the shared
@@ -106,8 +109,8 @@ Conventions:
 
 - Set `permissions` on every job (including jobs that call a reusable workflow). Every workflow
   has `permissions: {}` at the workflow level (it grants nothing), never a grant.
-- Each `ci-*` and `nightly-test-*` check is a `workflow_call` workflow that also has
-  `workflow_dispatch`, so it can be run alone.
+- Each `ci-*` check is a `workflow_call` workflow that also has `workflow_dispatch`, so it can be
+  run alone.
   Add a new check as a new `ci-<name>.yaml` plus a job in `ci.yaml`.
 - Put `make` targets in the steps rather than duplicating commands, so local runs and CI match.
 - Start each file with a comment saying what it does, and update it when the behaviour changes.
@@ -128,7 +131,7 @@ Conventions:
 
 The strategy is the same for all the action repositories of `durandtibo`. The properties of this
 action (P1 to P14) are in `review/target_state.md`. The action cases are the rows of
-`tests/cases.json`, read by `ci-action.yaml` through `scripts/load-cases.sh`.
+`tests/cases.json`, read by `ci-action.yaml`.
 
 Three levels:
 
@@ -137,19 +140,19 @@ Three levels:
 2. **Local action**: the action from this checkout (`uses: ./`) in a real workflow
    (`ci-action.yaml`).
 3. **Released action**: the latest stable release (`uses: durandtibo/verify-uv-build-action@<sha>`),
-   run nightly with the cases flagged `"released": true` (`nightly-test-released.yaml`). Never run
-   it on pull requests.
+   run nightly with the cases flagged `"released": true` (`nightly.yaml` calls `ci-action.yaml` with
+   `use-released: true`). Never run it on pull requests.
 
 Rules:
 
 - Test a behaviour at the cheapest level that can show it. The action tests (levels 2 and 3) check
   the contract and the wiring: inputs reach the script, outputs are set, the action fails on an
   invalid input. Do not re-test a script's logic there; add it to level 1.
-- Split the action tests in two. **General behaviour** (the default usage and the main documented
-  usage) runs on the full matrix: the OS and Python versions, and every package extra. **Edge
-  cases** (one input, one invalid value, an unusual file) run on one runner, or on the latest OS
-  when the case depends on the OS. There is no reduced matrix on pull requests: the same matrix
-  runs on pull requests, pushes and the schedule.
+- Split the action tests in two. **General behaviour** (the default usage, job `test`) runs on the
+  full matrix: the OS and Python versions. **Edge cases** (one input, one invalid value, an unusual
+  file, every package extra) run on one runner (`ubuntu-latest`) and do not cross the Python
+  matrix. There is no reduced matrix on pull requests: the same matrix runs on pull requests,
+  pushes and the schedule.
 - Never write an OS or a Python version in a workflow: read the lists from
   `durandtibo/workflow-config-action` through `lib-get-test-matrix.yaml`.
 - The cases are a JSON table (a new case is a row, not a job). A row has no `"released": true` until
@@ -157,6 +160,10 @@ Rules:
 - Every input has a case with an invalid value that asserts the action failed in the validation: it
   can only fail if the input reached the script, so it proves the wiring. Assert the value or the
   format of outputs, never just print them.
+- One file, two versions: each job has a step `uses: ./` with `if: ${{ !inputs.use-released }}` and
+  a step with the pinned release with `if: ${{ inputs.use-released }}`, and one verify step that
+  reads `steps.local.outputs.x || steps.released.outputs.x`. A job that tests a feature the last
+  release does not have runs on the local action only.
 - Failure paths use `continue-on-error: true`, an `id`, and a step that asserts `steps.<id>.outcome`.
   A negative test needs a positive run on the same runner before it, so it cannot pass for the wrong
   reason.
