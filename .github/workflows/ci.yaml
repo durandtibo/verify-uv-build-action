@@ -57,6 +57,12 @@ jobs:
     permissions:
       contents: read
 
+  # Break the scripts on purpose and check that the shell tests notice
+  mutation-check:
+    uses: ./.github/workflows/ci-mutation-check.yaml
+    permissions:
+      contents: read
+
   # Check that the files shipped to the consumers are the files the action needs
   export:
     uses: ./.github/workflows/ci-export.yaml

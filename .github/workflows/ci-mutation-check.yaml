@@ -1,0 +1,34 @@
+# Mutation-style check of the shell tests.
+# Breaks the scripts of scripts/ on purpose (see tests/mutants.txt) and fails when the
+# bats tests do not notice, i.e. when a test does not check what its name says.
+
+name: Mutation Check
+on:
+  workflow_call:
+  workflow_dispatch: # to trigger manually
+
+permissions: {}
+
+jobs:
+  mutation-check:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+
+      - name: Install bats-core
+        shell: bash
+        # The apt package of Ubuntu 22.04 is bats 1.2.1 but the tests need >= 1.5
+        # (bats_require_minimum_version), so install a pinned release from source.
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch v1.11.1 https://github.com/bats-core/bats-core.git "$RUNNER_TEMP/bats-core"
+          sudo "$RUNNER_TEMP/bats-core/install.sh" /usr/local
+
+      - name: Check that the tests detect the mutations
+        run: |
+          make mutation-check

@@ -54,7 +54,7 @@ show() {
 	show mypkg 1.0 "coola, numpy"
 	run call check_install "${WORK}/venv" mypkg mypkg "coola,numpy"
 	[ "$status" -eq 0 ]
-	[[ "$output" =~ "✅" ]]
+	[[ "$output" =~ "✅" ]] || false
 }
 
 @test "ok without dependencies" {
@@ -73,14 +73,14 @@ show() {
 	show other 1.0 ""
 	run --separate-stderr call check_install "${WORK}/venv" mypkg mypkg
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "expected mypkg, got other" ]]
+	[[ "$stderr" =~ "expected mypkg, got other" ]] || false
 }
 
 @test "package not installed fails" {
 	rm -f "${SHOW_FILE}"
 	run --separate-stderr call check_install "${WORK}/venv" mypkg mypkg
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "package not installed" ]]
+	[[ "$stderr" =~ "package not installed" ]] || false
 }
 
 @test "local version passes (F8)" {
@@ -99,7 +99,7 @@ show() {
 	show mypkg 0.0.0 ""
 	run --separate-stderr call check_install "${WORK}/venv" mypkg mypkg
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "invalid installed version" ]]
+	[[ "$stderr" =~ "invalid installed version" ]] || false
 }
 
 @test "expected version matches" {
@@ -112,14 +112,14 @@ show() {
 	show mypkg 1.2.3 ""
 	run --separate-stderr call check_install "${WORK}/venv" mypkg mypkg "" 1.2.4
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "expected 1.2.4, got 1.2.3" ]]
+	[[ "$stderr" =~ "expected 1.2.4, got 1.2.3" ]] || false
 }
 
 @test "missing dependency fails" {
 	show mypkg 1.0 "coola"
 	run --separate-stderr call check_install "${WORK}/venv" mypkg mypkg "coola,numpy"
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "expected numpy" ]]
+	[[ "$stderr" =~ "expected numpy" ]] || false
 }
 
 @test "dependency with underscore vs hyphen passes" {
@@ -150,45 +150,45 @@ show() {
 	show mypkg 1.0 ""
 	LOCATION="/checkout/mypkg/__init__.py" run --separate-stderr call check_install "${WORK}/venv" mypkg mypkg
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "not imported from site-packages" ]]
+	[[ "$stderr" =~ "not imported from site-packages" ]] || false
 }
 
 @test "import error fails" {
 	show mypkg 1.0 ""
 	IMPORT_ERROR="ModuleNotFoundError: No module named 'mypkg'" run --separate-stderr call check_install "${WORK}/venv" mypkg mypkg
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "cannot import mypkg" ]]
-	[[ "$stderr" =~ "ModuleNotFoundError" ]]
+	[[ "$stderr" =~ "cannot import mypkg" ]] || false
+	[[ "$stderr" =~ "ModuleNotFoundError" ]] || false
 }
 
 @test "module is passed as an argument, not interpolated" {
 	show mypkg 1.0 ""
 	run call check_install "${WORK}/venv" mypkg 'a; import os'
 	grep -Fq -- "a; import os" "${WORK}/python_args"
-	[[ "$(cat "${WORK}/python_args")" != *"-c"*"a; import os"*"import importlib"* ]]
+	[[ "$(cat "${WORK}/python_args")" != *"-c"*"a; import os"*"import importlib"* ]] || false
 }
 
 @test "default module name is derived from the package name" {
 	show my-pkg.x 1.0 ""
 	run call check_install "${WORK}/venv" my-pkg.x
 	[ "$status" -eq 0 ]
-	[[ "$(cat "${WORK}/python_args")" == *" my_pkg_x" ]]
+	[[ "$(cat "${WORK}/python_args")" == *" my_pkg_x" ]] || false
 }
 
 @test "all failures are reported in one run" {
 	show other 0.0.0 ""
 	LOCATION="/src/mypkg/__init__.py" run --separate-stderr call check_install "${WORK}/venv" mypkg mypkg numpy
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "wrong installed package name" ]]
-	[[ "$stderr" =~ "invalid installed version" ]]
-	[[ "$stderr" =~ "dependency not installed" ]]
-	[[ "$stderr" =~ "not imported from site-packages" ]]
+	[[ "$stderr" =~ "wrong installed package name" ]] || false
+	[[ "$stderr" =~ "invalid installed version" ]] || false
+	[[ "$stderr" =~ "dependency not installed" ]] || false
+	[[ "$stderr" =~ "not imported from site-packages" ]] || false
 }
 
 @test "the import runs in isolated mode (regression G9)" {
 	show mypkg 1.0 ""
 	run call check_install "${WORK}/venv" mypkg
-	[[ "$(cat "${WORK}/python_args")" == "-I "* ]]
+	[[ "$(cat "${WORK}/python_args")" == "-I "* ]] || false
 }
 
 @test "uv pip show targets the venv and ignores the project configuration" {
@@ -202,13 +202,13 @@ show() {
 	show mypkg 1.0 ""
 	CHECK_ERROR="mypkg 1.0 requires foo>=2, but 1.0 is installed" run --separate-stderr call check_install "${WORK}/venv" mypkg
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "broken dependencies" ]]
-	[[ "$stderr" =~ "requires foo>=2" ]]
+	[[ "$stderr" =~ "broken dependencies" ]] || false
+	[[ "$stderr" =~ "requires foo>=2" ]] || false
 }
 
 @test "uv pip check failure is reported with the other failures" {
 	show other 1.0 ""
 	CHECK_ERROR="broken" run --separate-stderr call check_install "${WORK}/venv" mypkg
-	[[ "$stderr" =~ "broken dependencies" ]]
-	[[ "$stderr" =~ "wrong installed package name" ]]
+	[[ "$stderr" =~ "broken dependencies" ]] || false
+	[[ "$stderr" =~ "wrong installed package name" ]] || false
 }

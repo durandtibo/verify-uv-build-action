@@ -37,39 +37,39 @@ setup() {
 @test "a failure that was expected to succeed fails" {
 	EXPECT=success OUTCOME=failure run "${SCRIPT}"
 	[ "$status" -eq 1 ]
-	[[ "$output" == *"Expected the action to end with 'success' but got 'failure'"* ]]
+	[[ "$output" == *"Expected the action to end with 'success' but got 'failure'"* ]] || false
 }
 
 @test "a success that was expected to fail fails" {
 	EXPECT=failure OUTCOME=success run "${SCRIPT}"
 	[ "$status" -eq 1 ]
-	[[ "$output" == *"Expected the action to end with 'failure' but got 'success'"* ]]
+	[[ "$output" == *"Expected the action to end with 'failure' but got 'success'"* ]] || false
 }
 
 @test "a missing wheel fails" {
 	rm "${WHEEL_PATH}"
 	EXPECT=success OUTCOME=success EXPECT_OUTPUTS=true run "${SCRIPT}"
 	[ "$status" -eq 1 ]
-	[[ "$output" == *"wheel-path"* ]]
+	[[ "$output" == *"wheel-path"* ]] || false
 }
 
 @test "an empty sdist-path fails" {
 	SDIST_PATH="" EXPECT=success OUTCOME=success EXPECT_OUTPUTS=true run "${SCRIPT}"
 	[ "$status" -eq 1 ]
-	[[ "$output" == *"sdist-path"* ]]
+	[[ "$output" == *"sdist-path"* ]] || false
 }
 
 @test "a dist-dir that does not hold the wheel fails" {
 	mkdir "${BATS_TEST_TMPDIR}/other"
 	DIST_DIR="${BATS_TEST_TMPDIR}/other" EXPECT=success OUTCOME=success EXPECT_OUTPUTS=true run "${SCRIPT}"
 	[ "$status" -eq 1 ]
-	[[ "$output" == *"dist-dir"* ]]
+	[[ "$output" == *"dist-dir"* ]] || false
 }
 
 @test "a version that is not in the wheel name fails" {
 	VERSION="9.9.9" EXPECT=success OUTCOME=success EXPECT_OUTPUTS=true run "${SCRIPT}"
 	[ "$status" -eq 1 ]
-	[[ "$output" == *"version"* ]]
+	[[ "$output" == *"version"* ]] || false
 }
 
 @test "an empty version fails" {

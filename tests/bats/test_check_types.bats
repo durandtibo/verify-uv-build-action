@@ -36,24 +36,24 @@ teardown() {
 @test "module name defaults from the package name (regression G10)" {
 	run call check_types "${WORK}/venv" my-pkg.x "" 1.2.3
 	[ "$status" -eq 0 ]
-	[[ "$(cat "${WORK}/uvx_args")" == *"--verifytypes my_pkg_x"* ]]
+	[[ "$(cat "${WORK}/uvx_args")" == *"--verifytypes my_pkg_x"* ]] || false
 }
 
 @test "an explicit module name wins over the package name" {
 	run call check_types "${WORK}/venv" my-pkg other_mod 1.2.3
-	[[ "$(cat "${WORK}/uvx_args")" == *"--verifytypes other_mod"* ]]
+	[[ "$(cat "${WORK}/uvx_args")" == *"--verifytypes other_mod"* ]] || false
 }
 
 @test "an empty module name falls back to the default" {
 	run call check_types "${WORK}/venv" my-pkg "" 1.2.3
 	[ "$status" -eq 0 ]
-	[[ "$(cat "${WORK}/uvx_args")" == *"--verifytypes my_pkg"* ]]
+	[[ "$(cat "${WORK}/uvx_args")" == *"--verifytypes my_pkg"* ]] || false
 }
 
 @test "succeeds when pyright succeeds" {
 	run call check_types "${WORK}/venv" mypkg "" 1.2.3
 	[ "$status" -eq 0 ]
-	[[ "$output" =~ "✅ Type hints validated for mypkg" ]]
+	[[ "$output" =~ "✅ Type hints validated for mypkg" ]] || false
 }
 
 @test "passes the pinned version and module to uvx" {
@@ -70,13 +70,13 @@ teardown() {
 	rm "${WORK}/venv/bin/python"
 	run --separate-stderr call check_types "${WORK}/venv" mypkg "" 1.2.3
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "cannot query the environment" ]]
+	[[ "$stderr" =~ "cannot query the environment" ]] || false
 }
 
 @test "fails with exit 1 and a cross line when pyright fails" {
 	UVX_STATUS=1 run --separate-stderr call check_types "${WORK}/venv" mypkg "" 1.2.3
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "❌ type completeness check failed for mypkg" ]]
+	[[ "$stderr" =~ "❌ type completeness check failed for mypkg" ]] || false
 }
 
 @test "fails when uvx cannot run (no silent skip)" {

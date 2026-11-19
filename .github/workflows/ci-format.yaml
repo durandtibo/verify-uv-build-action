@@ -1,6 +1,7 @@
 # Formatting and linting workflow.
 # Checks that the files are formatted (`make format` leaves no change) and that the
-# Markdown, shell, YAML, Makefile, TOML and workflow files pass the linters (`make lint`).
+# Markdown, shell, YAML, Makefile, TOML and workflow files pass the linters (`make lint`),
+# and that no bats assertion passes vacuously on bash 3.2 (`make lint-bats`).
 # Each check runs through the Makefile, so it can be reproduced locally.
 
 name: Format
@@ -42,3 +43,7 @@ jobs:
       - name: Lint
         run: |
           make lint
+
+      - name: Lint the bats assertions
+        run: |
+          make lint-bats

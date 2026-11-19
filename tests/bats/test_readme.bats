@@ -67,7 +67,7 @@ readme_default() {
 	used="$(sed -n 's/.*actions\/checkout@\(v[0-9]*\).*/\1/p' .github/workflows/ci-action.yaml | sed -n 1p)"
 	[ -n "${used}" ]
 	grep -q "actions/checkout@${used}" README.md
-	! grep -E "actions/checkout@v[0-9]+" README.md | grep -vq "actions/checkout@${used}"
+	! grep -E "actions/checkout@v[0-9]+" README.md | grep -vq "actions/checkout@${used}" || false
 }
 
 @test "README documents fetch-depth for VCS-derived versions" {
