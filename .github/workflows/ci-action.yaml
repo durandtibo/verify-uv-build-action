@@ -21,7 +21,11 @@
 # tests of the scripts (tests/bats/), not here.
 #
 # Two levels of tests:
-#   - general behaviour (`test`): the default usage on every OS and Python version of the matrix
+#   - general behaviour: `test` (the default usage) on every OS and Python version of the matrix,
+#     and `test-main-usage` (the README matrix example: extras and dependencies) on every OS of
+#     the matrix with one Python version. Only these two jobs cross the OS matrix; the cells of a
+#     run are at most os_matrix x python_versions for `test` plus os_matrix for `test-main-usage`
+#     (the lists come from durandtibo/workflow-config-action, they are not written here).
 #   - edge cases (`test-extra`, `test-tool-versions`, `test-two-invocations`, `test-cases`, ...):
 #     one input, one invalid value or one unusual file, on one runner (ubuntu-latest). A new case
 #     is a new row of tests/cases.json, not a new job. A row has no "released": true until the
@@ -129,6 +133,55 @@ jobs:
         with:
           package-name: myproject
           python-version: ${{ matrix.python-version }}
+
+      - name: Check the outputs
+        env:
+          EXPECT: success
+          OUTCOME: success
+          EXPECT_OUTPUTS: ${{ !inputs.use-released }}
+          WHEEL_PATH: ${{ steps.local.outputs.wheel-path }}
+          SDIST_PATH: ${{ steps.local.outputs.sdist-path }}
+          DIST_DIR: ${{ steps.local.outputs.dist-dir }}
+          VERSION: ${{ steps.local.outputs.version }}
+        run: tests/check_action_case.sh
+        shell: bash
+
+  # General behaviour: the main documented usage (the README matrix example, with an extra and a
+  # dependency) on every OS of the matrix. It does not cross the Python matrix: `test` does.
+  test-main-usage:
+    needs: get-matrix
+    if: ${{ !cancelled() && (needs.get-matrix.result == 'success' || needs.get-matrix.result == 'skipped') }}
+    permissions:
+      contents: read
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    strategy:
+      max-parallel: 8
+      fail-fast: false
+      matrix:
+        os: ${{ fromJson(inputs.test-matrix || needs.get-matrix.outputs.test_matrix).os_matrix }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+
+      - name: Verify Build (local)
+        id: local
+        if: ${{ !inputs.use-released }}
+        uses: ./
+        with:
+          package-name: myproject
+          package-extras: all
+          package-dependencies: coola
+
+      - name: Verify Build (released)
+        id: released
+        if: ${{ inputs.use-released }}
+        uses: durandtibo/verify-uv-build-action@88da014d506b5f0b4f657d4ba8920061ab785620 # ratchet:durandtibo/verify-uv-build-action@v0.0.7
+        with:
+          package-name: myproject
+          package-extra: all
+          package-dependencies: coola
 
       - name: Check the outputs
         env:

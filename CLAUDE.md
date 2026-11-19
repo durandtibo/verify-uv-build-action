@@ -90,10 +90,11 @@ Files are prefixed by role:
   - `ci-shell-bash32.yaml`: bats tests on macOS with the system bash 3.2.
   - `ci-action.yaml`: one file that tests both versions of the action, selected by the boolean
     input `use-released` (default `false`). `ci.yaml` calls it with `false`: the action from this
-    checkout (`uses: ./`), i.e. the version not released yet. General behaviour (`test`) runs on
-    the Python/OS matrix; the edge cases run on one runner: every package extra, and the failure
-    and edge cases of `tests/cases.json` (one row per case: inputs, optional `setup` snippet,
-    expected outcome). Add a case as a new row. The `test-latest-tools` job (latest twine and
+    checkout (`uses: ./`), i.e. the version not released yet. General behaviour runs on the OS
+    matrix: `test` (the default usage) crosses the Python versions too, `test-main-usage` (the
+    README matrix example) does not. The edge cases run on one runner: every package extra, and the
+    failure and edge cases of `tests/cases.json` (one row per case: inputs, optional `setup`
+    snippet, expected outcome). Add a case as a new row. The `test-latest-tools` job (latest twine and
     pyright) only runs on the schedule of `ci.yaml`.
 - `nightly.yaml`: nightly entry point (schedule and manual runs) that calls `ci-action.yaml` with
   `use-released: true`, which runs the latest released action (pinned SHA) with the rows flagged
