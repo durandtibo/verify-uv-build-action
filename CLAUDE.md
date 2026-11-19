@@ -23,6 +23,10 @@ used as the fixture that the action builds and verifies in CI. They are not part
 maintainer review of the design (the properties P1 to P14 and the problems found); it is not part
 of the action.
 
+`tests/` also holds the maintainer helpers of the CI, not part of the action: `cases.json` (the
+action cases), `check_action_case.sh` (the assertions of `ci-action.yaml`) and `check_export.sh`
+(the exported set, see `.gitattributes`).
+
 ## Environment
 
 - Use the `Makefile`; run `make help` to list targets. `make install-tools` installs the lint and
@@ -48,6 +52,8 @@ of the action.
 - PR descriptions cover what changed, what was deliberately left alone, and any behaviour change.
 - Do not escape special characters such as the backtick (`` ` ``) in PR titles and descriptions
   (no `\``): the escape characters are not rendered well. Write them as plain Markdown.
+- Do not escape special characters such as the backtick (`` ` ``) in PR titles and descriptions
+  (no `\``): the escape characters are not rendered well. Write them as plain Markdown.
 - On conflicts with `main`, merge `origin/main` into the branch; do not rebase and force-push.
 - Update `README.md` when inputs, behaviour, or workflows change.
 - Releases are immutable exact version tags (`v1.9`, ...). Do not create or move floating tags
@@ -65,12 +71,14 @@ of the action.
 - Pin third-party actions in workflows and in `action.yaml` to commit SHAs with a
   `# ratchet:<owner>/<repo>@<tag>` comment, never to tags or branches.
 - Workflows use least-privilege `permissions` and set `timeout-minutes` on jobs.
-- Only depend on what the action ships: `action.yaml` and the files of `scripts/` (the scripts it
-  calls through `"$GITHUB_ACTION_PATH/scripts/"` and `scripts/requirements.txt`). Never make the
-  action read tests, `src/`, `review/` or other repo files, because they are not part of what a
-  user of the action should rely on. When the action starts using a new file, say so in the PR.
-  There is no `.gitattributes` `export-ignore`: the whole repository is checked out when the
-  action is used from another repository.
+- Only ship what the action needs at runtime: `action.yaml`, `LICENSE` and the files of
+  `scripts/` (the scripts it calls through `"$GITHUB_ACTION_PATH/scripts/"` and
+  `scripts/requirements.txt`) are exported, and `.gitattributes` marks everything else
+  `export-ignore`. When the action starts using a new file, un-ignore it there, add it to
+  `EXPECTED` in `tests/check_export.sh` and say so in the PR. Never make the action read tests,
+  `src/`, `review/` or other repo files that are not exported. Check the exported set with
+  `make check-export` (it runs on the committed `HEAD`) or
+  `git archive --worktree-attributes HEAD | tar t`.
 
 ## Shell script rules (`scripts/*.sh`)
 
@@ -93,6 +101,7 @@ Files are prefixed by role:
   - `ci-format.yaml`: shell, Markdown and YAML lint/format checks.
   - `ci-shell.yaml`: bats tests on the OS matrix.
   - `ci-shell-bash32.yaml`: bats tests on macOS with the system bash 3.2.
+  - `ci-export.yaml`: checks the exported set (`make check-export`, `tests/check_export.sh`).
   - `ci-action.yaml`: one file that tests both versions of the action, selected by the boolean
     input `use-released` (default `false`). `ci.yaml` calls it with `false`: the action from this
     checkout (`uses: ./`), i.e. the version not released yet. General behaviour runs on the OS
@@ -185,16 +194,16 @@ Rules:
   runner before it, so it cannot pass for the wrong reason.
 - Tests have no side effects outside the runner: throwaway files and copies of the fixture. If
   something cannot be tested in CI, write down which check covers it.
-- Check the action does not depend on a file outside `action.yaml` and `scripts/` (the shipped
-  set is `git ls-files action.yaml scripts`): `uses: ./` runs
-  the whole checkout and hides a missing or misplaced file, so the released run (level 3) is the
-  check that the shipped files are enough.
+- Check what is shipped: the exported set (`make check-export`) must contain every file the action
+  needs, because `uses: ./` runs the whole checkout and hides a missing or misplaced file. The
+  released run (level 3) is the second check that the shipped files are enough.
 - Set `timeout-minutes` and `fail-fast: false` on matrix jobs. Put assertions shared by the local
   and released runs in one script, not in two workflows.
 - Keep the README inputs and outputs in step with `action.yaml` (`tests/bats/test_readme.bats`).
 
 ## Reporting
 
-- State which checks ran (`make lint`, `make format`, `bats tests/bats/`) and which did not.
+- State which checks ran (`make lint`, `make format`, `make check-export`, `bats tests/bats/`) and
+  which did not.
 - Note that CI was not awaited.
 - Report failures that already exist on `main` rather than hiding them.
