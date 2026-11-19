@@ -7,23 +7,26 @@ Guidance for coding agents working in this repository.
 A GitHub composite action (`action.yaml`) that builds a Python package with `uv build` and verifies
 the resulting wheel and sdist: name, version, `py.typed` marker and extras in the core metadata,
 `twine check`, a clean install with its direct dependencies, the import, and type completeness
-(pyright). All the logic lives in `scripts/*.sh` (bash, must work on GNU/Linux and BSD/macOS) and is
-tested with [bats](https://github.com/bats-core/bats-core) in `tests/bats/`: `verify.sh` (the entry
-point of the action, also run locally with `PACKAGE_NAME=<pkg> bash scripts/verify.sh`), `lib.sh`
+(pyright). All the logic lives in `scripts/*.sh` (bash, must work on GNU/Linux and BSD/macOS;
+Windows is not supported and not tested) and is tested with
+[bats](https://github.com/bats-core/bats-core) in `tests/bats/`: `verify.sh` (the entry point of
+the action, also run locally with `PACKAGE_NAME=<pkg> bash scripts/verify.sh`), `lib.sh`
 (shared helpers), `check_dist.sh`, `check_install.sh` and `check_types.sh`. Only `verify.sh` is
 executable: the others are libraries sourced by it and called as functions with explicit
 arguments. `action.yaml` only wires the inputs to `verify.sh`.
 
 `src/myproject/` and `pyproject.toml` are a small dummy Python package
 used as the fixture that the action builds and verifies in CI. They are not part of the action. The
-`dist/` directory holds local build output and is git-ignored.
+`dist/` directory holds local build output and is git-ignored. `review/target_state.md` is a
+maintainer review of the design (the properties P1 to P14 and the problems found); it is not part
+of the action.
 
 ## Environment
 
 - Use the `Makefile`; run `make help` to list targets. `make install-tools` installs the lint and
   format tools.
-- Do not edit `.make/`: it is a shared directory of makefiles shared across repositories. Change
-  the root `Makefile` instead.
+- Do not edit `.make/`: it is a shared directory of makefiles synced by
+  `bot-sync-shared-makefile.yaml`. Change the root `Makefile` instead.
 - Run `make format` and `make lint` before committing. Fix what they report instead of disabling
   rules.
 - Run the shell tests with `make test-shell` or `bats tests/bats/` (install `bats-core` with
@@ -36,6 +39,10 @@ used as the fixture that the action builds and verifies in CI. They are not part
   push to `main`.
 - Name branches `<type>/<short-description>` in kebab-case, with type one of: `feat`, `bugfix`,
   `hotfix`, `docs`, `refactor`, `perf`, `test`, `chore`, `ci`.
+- Write commit messages and PR titles as a short imperative sentence starting with a verb such as
+  `Add`, `Fix`, `Update`, `Remove` or `Improve`. Do not use conventional-commit prefixes like
+  `docs:` or `feat:` (the type prefix is only for branch names). The squash-merge appends the PR
+  number, so do not add one.
 - PR descriptions cover what changed, what was deliberately left alone, and any behaviour change.
 - On conflicts with `main`, merge `origin/main` into the branch; do not rebase and force-push.
 - Update `README.md` when inputs, behaviour, or workflows change.
@@ -63,6 +70,9 @@ used as the fixture that the action builds and verifies in CI. They are not part
 - Quote all variables; validate inputs early with clear error messages and a non-zero exit code.
 - Keep the header comment (description, usage, arguments, exit codes) in sync with the script.
 - Code must pass `shellcheck` and `shfmt` via `make lint` / `make format`.
+- A function that can fail is followed by an explicit `return 1` on failure
+  (`cmd || { echo "❌ ..."; return 1; }`). Never rely on `set -e`: a caller in an `||` list turns it
+  off.
 
 ## Workflow structure (`.github/workflows/`)
 
@@ -113,6 +123,48 @@ Conventions:
 - Changes to `verify.sh` are tested with `uv`/`uvx` mocked on `PATH` (`tests/bats/test_verify.bats`).
 - Changes to `action.yaml` behaviour are covered by the `ci-action.yaml` matrix; extend it when
   adding an input or a check.
+
+## Testing strategy
+
+The strategy is the same for all the action repositories of `durandtibo`. The properties of this
+action (P1 to P14) are in `review/target_state.md`. The action cases are the rows of
+`tests/cases.json`, read by `ci-action.yaml` through `scripts/load-cases.sh`.
+
+Three levels:
+
+1. **Code**: each script or function, tested alone with mocks (bats). It covers the logic and every
+   edge case. No network, no GitHub.
+2. **Local action**: the action from this checkout (`uses: ./`) in a real workflow
+   (`ci-action.yaml`).
+3. **Released action**: the latest stable release (`uses: durandtibo/verify-uv-build-action@<sha>`),
+   run nightly with the cases flagged `"released": true` (`nightly-test-released.yaml`). Never run
+   it on pull requests.
+
+Rules:
+
+- Test a behaviour at the cheapest level that can show it. The action tests (levels 2 and 3) check
+  the contract and the wiring: inputs reach the script, outputs are set, the action fails on an
+  invalid input. Do not re-test a script's logic there; add it to level 1.
+- Split the action tests in two. **General behaviour** (the default usage and the main documented
+  usage) runs on the full matrix: the OS and Python versions, and every package extra. **Edge
+  cases** (one input, one invalid value, an unusual file) run on one runner, or on the latest OS
+  when the case depends on the OS. There is no reduced matrix on pull requests: the same matrix
+  runs on pull requests, pushes and the schedule.
+- Never write an OS or a Python version in a workflow: read the lists from
+  `durandtibo/workflow-config-action` through `lib-get-test-matrix.yaml`.
+- The cases are a JSON table (a new case is a row, not a job). A row has no `"released": true` until
+  the last release has the feature; the released run skips those rows.
+- Every input has a case with an invalid value that asserts the action failed in the validation: it
+  can only fail if the input reached the script, so it proves the wiring. Assert the value or the
+  format of outputs, never just print them.
+- Failure paths use `continue-on-error: true`, an `id`, and a step that asserts `steps.<id>.outcome`.
+  A negative test needs a positive run on the same runner before it, so it cannot pass for the wrong
+  reason.
+- Tests have no side effects outside the runner: throwaway files and copies of the fixture. If
+  something cannot be tested in CI, write down which check covers it.
+- Set `timeout-minutes` and `fail-fast: false` on matrix jobs. Put assertions shared by the local
+  and released runs in one script, not in two workflows.
+- Keep the README inputs and outputs in step with `action.yaml` (`tests/bats/test_readme.bats`).
 
 ## Reporting
 
