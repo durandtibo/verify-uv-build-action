@@ -75,6 +75,8 @@ jobs:
   # The cases of the edge case tests, as a matrix. The released run only gets the rows flagged
   # "released": true.
   get-cases:
+    needs: get-matrix
+    if: ${{ !cancelled() && (needs.get-matrix.result == 'success' || needs.get-matrix.result == 'skipped') }}
     permissions:
       contents: read
     runs-on: ubuntu-latest
@@ -89,10 +91,15 @@ jobs:
         id: cases
         env:
           USE_RELEASED: ${{ inputs.use-released }}
+          TEST_MATRIX: ${{ inputs.test-matrix || needs.get-matrix.outputs.test_matrix }}
         run: |
           set -euo pipefail
-          cases="$(jq -c --argjson released "$USE_RELEASED" \
-            'if $released then map(select(.released == true)) else . end' tests/cases.json)"
+          # A row without python-version gets the latest standard version of the shared matrix,
+          # so no Python version is written in this workflow.
+          cases="$(jq -c --argjson released "$USE_RELEASED" --argjson matrix "$TEST_MATRIX" \
+            '($matrix.python_versions_standard | max_by(split(".") | map(tonumber))) as $py
+             | (if $released then map(select(.released == true)) else . end)
+             | map({"python-version": $py} + .)' tests/cases.json)"
           if [ "$cases" = "[]" ]; then
             echo "❌ No case to run in tests/cases.json (use-released: $USE_RELEASED)" >&2
             exit 1
@@ -298,7 +305,7 @@ jobs:
           package-extras: ${{ matrix.case['package-extras'] }}
           package-dependencies: ${{ matrix.case['package-dependencies'] }}
           dist-type: ${{ matrix.case['dist-type'] || 'both' }}
-          python-version: ${{ matrix.case['python-version'] || '3.13' }}
+          python-version: ${{ matrix.case['python-version'] }}
           check-types: ${{ matrix.case['check-types'] || 'true' }}
           project-path: ${{ matrix.case['project-path'] || '.' }}
           twine-version: ${{ matrix.case['twine-version'] }}
@@ -316,7 +323,7 @@ jobs:
           package-extra: ${{ matrix.case['package-extras'] }}
           package-dependencies: ${{ matrix.case['package-dependencies'] }}
           dist-type: ${{ matrix.case['dist-type'] || 'wheel' }}
-          python-version: ${{ matrix.case['python-version'] || '3.13' }}
+          python-version: ${{ matrix.case['python-version'] }}
 
       - name: Check the case
         env:

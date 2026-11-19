@@ -20,8 +20,9 @@ the inputs to `verify.sh`.
 `src/myproject/` and `pyproject.toml` are a small dummy Python package
 used as the fixture that the action builds and verifies in CI. They are not part of the action. The
 `dist/` directory holds local build output and is git-ignored. `review/target_state.md` is a
-maintainer review of the design (the properties P1 to P14 and the problems found); it is not part
-of the action.
+maintainer review of the design (the properties P1 to P14 and the problems found) and
+`review/testing.md` is the testing strategy shared by the action repositories of `durandtibo` (the
+properties T1 to T16); neither is part of the action.
 
 `tests/` also holds the maintainer helpers of the CI, not part of the action: `cases.json` (the
 action cases), `check_action_case.sh` (the assertions of `ci-action.yaml`) and `check_export.sh`
@@ -52,8 +53,6 @@ action cases), `check_action_case.sh` (the assertions of `ci-action.yaml`) and `
 - PR descriptions cover what changed, what was deliberately left alone, and any behaviour change.
 - Do not escape special characters such as the backtick (`` ` ``) in PR titles and descriptions
   (no `\``): the escape characters are not rendered well. Write them as plain Markdown.
-- Do not escape special characters such as the backtick (`` ` ``) in PR titles and descriptions
-  (no `\``): the escape characters are not rendered well. Write them as plain Markdown.
 - On conflicts with `main`, merge `origin/main` into the branch; do not rebase and force-push.
 - Update `README.md` when inputs, behaviour, or workflows change.
 - Releases are immutable exact version tags (`v1.9`, ...). Do not create or move floating tags
@@ -70,7 +69,8 @@ action cases), `check_action_case.sh` (the assertions of `ci-action.yaml`) and `
   they resolve when the action is used from another repository.
 - Pin third-party actions in workflows and in `action.yaml` to commit SHAs with a
   `# ratchet:<owner>/<repo>@<tag>` comment, never to tags or branches.
-- Workflows use least-privilege `permissions` and set `timeout-minutes` on jobs.
+- Workflows use least-privilege `permissions` and set `timeout-minutes` on jobs. Do not use
+  `concurrency`.
 - Only ship what the action needs at runtime: `action.yaml`, `LICENSE` and the files of
   `scripts/` (the scripts it calls through `"$GITHUB_ACTION_PATH/scripts/"` and
   `scripts/requirements.txt`) are exported, and `.gitattributes` marks everything else
@@ -151,9 +151,14 @@ Conventions:
 
 ## Testing strategy
 
-The strategy is the same for all the action repositories of `durandtibo`. The properties of this
-action (P1 to P14) are in `review/target_state.md`. The action cases are the rows of
-`tests/cases.json`, read by `ci-action.yaml`.
+The strategy is the same for all the action repositories of `durandtibo`. The full reasoning and
+the properties (T1 to T16) are in `review/testing.md`; the properties of this action (P1 to P14)
+are in `review/target_state.md`. This repository follows it: the action cases are the rows of
+`tests/cases.json`, read by `ci-action.yaml`, and checked by `tests/check_action_case.sh`.
+
+Supported platforms (T4): Linux and macOS, and every Python version of `python_versions` (the
+action runs in the Python of the caller). Windows is not supported and not tested. The README
+claims the same.
 
 Three levels:
 
@@ -179,7 +184,9 @@ Rules:
   matrix. There is no reduced matrix on pull requests: the same matrix runs on pull requests,
   pushes and the schedule.
 - Never write an OS or a Python version in a workflow: read the lists from
-  `durandtibo/workflow-config-action` through `lib-get-test-matrix.yaml`.
+  `durandtibo/workflow-config-action` through `lib-get-test-matrix.yaml`, which is the same file in
+  every repository. `ubuntu-latest` is the one runner of the edge cases. A case row without
+  `python-version` gets the latest standard version of the matrix (`get-cases` in `ci-action.yaml`).
 - The cases are a JSON table (a new case is a row, not a job). A row has no `"released": true` until
   the last release has the feature; the released run skips those rows.
 - Every input has a case with an invalid value that asserts the action failed in the validation: it
@@ -197,8 +204,8 @@ Rules:
 - Check what is shipped: the exported set (`make check-export`) must contain every file the action
   needs, because `uses: ./` runs the whole checkout and hides a missing or misplaced file. The
   released run (level 3) is the second check that the shipped files are enough.
-- Set `timeout-minutes` and `fail-fast: false` on matrix jobs. Put assertions shared by the local
-  and released runs in one script, not in two workflows.
+- Set `timeout-minutes`, `fail-fast: false` and `max-parallel` on matrix jobs. Put assertions
+  shared by the local and released runs in one script, not in two workflows.
 - Keep the README inputs and outputs in step with `action.yaml` (`tests/bats/test_readme.bats`).
 
 ## Reporting
