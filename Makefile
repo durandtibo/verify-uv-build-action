@@ -28,3 +28,13 @@ lint: lint-yaml lint-makefile lint-shell lint-markdown lint-actions ## Lint all 
 test-shell: ## Run the bats tests of the shell scripts
 	@bats --version
 	bats --recursive tests/bats
+
+.PHONY: test
+test: test-shell ## Run all the tests
+
+.PHONY: all
+all: format lint test ## Format, lint and test
+
+.PHONY: clean
+clean: ## Remove the local build output
+	rm -rf dist build
