@@ -24,6 +24,10 @@ format: format-yaml format-makefile format-shell format-toml format-markdown ## 
 .PHONY: lint
 lint: lint-yaml lint-makefile lint-shell lint-markdown lint-actions ## Lint all files
 
+.PHONY: check-export
+check-export: ## Check that the exported files are the files the action needs
+	./tests/check_export.sh
+
 .PHONY: test-shell
 test-shell: ## Run the bats tests of the shell scripts
 	@bats --version
