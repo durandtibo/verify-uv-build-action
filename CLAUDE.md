@@ -13,7 +13,9 @@ Windows is not supported and not tested) and is tested with
 the action, also run locally with `PACKAGE_NAME=<pkg> bash scripts/verify.sh`), `lib.sh`
 (shared helpers), `check_dist.sh`, `check_install.sh` and `check_types.sh`. Only `verify.sh` is
 executable: the others are libraries sourced by it and called as functions with explicit
-arguments. `action.yaml` only wires the inputs to `verify.sh`.
+arguments. `scripts/requirements.txt` pins the default `twine` and `pyright` versions that
+`verify.sh` runs through `uvx` (read by `lib.sh`; Dependabot bumps it). `action.yaml` only wires
+the inputs to `verify.sh`.
 
 `src/myproject/` and `pyproject.toml` are a small dummy Python package
 used as the fixture that the action builds and verifies in CI. They are not part of the action. The
@@ -61,11 +63,12 @@ of the action.
 - Pin third-party actions in workflows and in `action.yaml` to commit SHAs with a
   `# ratchet:<owner>/<repo>@<tag>` comment, never to tags or branches.
 - Workflows use least-privilege `permissions` and set `timeout-minutes` on jobs.
-- Only depend on what the action ships: `action.yaml` and the scripts it calls through
-  `"$GITHUB_ACTION_PATH/scripts/"`. Never make the action read tests, `src/`, `review/` or other
-  repo files, because they are not part of what a user of the action should rely on. When the action
-  starts using a new file, say so in the PR. There is no `.gitattributes` `export-ignore`: the
-  whole repository is checked out when the action is used from another repository.
+- Only depend on what the action ships: `action.yaml` and the files of `scripts/` (the scripts it
+  calls through `"$GITHUB_ACTION_PATH/scripts/"` and `scripts/requirements.txt`). Never make the
+  action read tests, `src/`, `review/` or other repo files, because they are not part of what a
+  user of the action should rely on. When the action starts using a new file, say so in the PR.
+  There is no `.gitattributes` `export-ignore`: the whole repository is checked out when the
+  action is used from another repository.
 
 ## Shell script rules (`scripts/*.sh`)
 
@@ -111,6 +114,8 @@ Files are prefixed by role:
   sync the shared `.make` subtree, cancel stale queued runs).
 - `security-*.yaml`: dependency review and OSSF Scorecard.
 
+`.github/dependabot.yml` bumps the pinned actions and `scripts/requirements.txt`.
+
 Conventions:
 
 - Set `permissions` on every job (including jobs that call a reusable workflow). Every workflow
@@ -151,6 +156,9 @@ Three levels:
 
 Rules:
 
+- The action tests use the real `uv` and the real PyPI, never a fake, on a throwaway copy of the
+  fixture. The effect of an input on a check (every edge case of the metadata, the install or the
+  types) is a level 1 test with `uv`/`uvx` mocked.
 - Test a behaviour at the cheapest level that can show it. The action tests (levels 2 and 3) check
   the contract and the wiring: inputs reach the script, outputs are set, the action fails on an
   invalid input. Do not re-test a script's logic there; add it to level 1.
@@ -175,7 +183,8 @@ Rules:
   runner before it, so it cannot pass for the wrong reason.
 - Tests have no side effects outside the runner: throwaway files and copies of the fixture. If
   something cannot be tested in CI, write down which check covers it.
-- Check the action does not depend on a file outside `action.yaml` and `scripts/`: `uses: ./` runs
+- Check the action does not depend on a file outside `action.yaml` and `scripts/` (the shipped
+  set is `git ls-files action.yaml scripts`): `uses: ./` runs
   the whole checkout and hides a missing or misplaced file, so the released run (level 3) is the
   check that the shipped files are enough.
 - Set `timeout-minutes` and `fail-fast: false` on matrix jobs. Put assertions shared by the local
