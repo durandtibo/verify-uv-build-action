@@ -61,6 +61,11 @@ of the action.
 - Pin third-party actions in workflows and in `action.yaml` to commit SHAs with a
   `# ratchet:<owner>/<repo>@<tag>` comment, never to tags or branches.
 - Workflows use least-privilege `permissions` and set `timeout-minutes` on jobs.
+- Only depend on what the action ships: `action.yaml` and the scripts it calls through
+  `"$GITHUB_ACTION_PATH/scripts/"`. Never make the action read tests, `src/`, `review/` or other
+  repo files, because they are not part of what a user of the action should rely on. When the action
+  starts using a new file, say so in the PR. There is no `.gitattributes` `export-ignore`: the
+  whole repository is checked out when the action is used from another repository.
 
 ## Shell script rules (`scripts/*.sh`)
 
@@ -165,10 +170,13 @@ Rules:
   reads `steps.local.outputs.x || steps.released.outputs.x`. A job that tests a feature the last
   release does not have runs on the local action only.
 - Failure paths use `continue-on-error: true`, an `id`, and a step that asserts `steps.<id>.outcome`.
-  A negative test needs a positive run on the same runner before it, so it cannot pass for the wrong
-  reason.
+  Assert an id or an exact output, not a message. A negative test needs a positive run on the same
+  runner before it, so it cannot pass for the wrong reason.
 - Tests have no side effects outside the runner: throwaway files and copies of the fixture. If
   something cannot be tested in CI, write down which check covers it.
+- Check the action does not depend on a file outside `action.yaml` and `scripts/`: `uses: ./` runs
+  the whole checkout and hides a missing or misplaced file, so the released run (level 3) is the
+  check that the shipped files are enough.
 - Set `timeout-minutes` and `fail-fast: false` on matrix jobs. Put assertions shared by the local
   and released runs in one script, not in two workflows.
 - Keep the README inputs and outputs in step with `action.yaml` (`tests/bats/test_readme.bats`).
