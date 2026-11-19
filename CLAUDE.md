@@ -30,7 +30,9 @@ action cases), `check_action_case.sh` (the assertions of `ci-action.yaml`) and `
 
 ## Environment
 
-- Use the `Makefile`; run `make help` to list targets. `make install-tools` installs the lint and
+- Use the `Makefile`; run `make help` to list targets. It includes `.make/all.mk`, which defines
+  `format`, `lint` and `install-tools`; the root `Makefile` only adds the targets of this repo
+  (`check-export`, `test-shell`, `test`, `all`, `clean`). `make install-tools` installs the lint and
   format tools.
 - Do not edit `.make/`: it is a shared directory of makefiles synced by
   `bot-sync-shared-makefile.yaml`. Change the root `Makefile` instead.
@@ -98,7 +100,8 @@ Files are prefixed by role:
 
 - `ci.yaml`: entry point for pull requests, pushes to `main`, a nightly schedule and manual runs. It
   holds no steps, only jobs that call the reusable `ci-*.yaml` workflows below.
-  - `ci-format.yaml`: shell, Markdown and YAML lint/format checks.
+  - `ci-format.yaml`: two jobs, `make format` followed by `git diff --exit-code` (the files are
+    formatted) and `make lint` (shell, Markdown, YAML, Makefile, TOML and workflow linters).
   - `ci-shell.yaml`: bats tests on the OS matrix.
   - `ci-shell-bash32.yaml`: bats tests on macOS with the system bash 3.2.
   - `ci-export.yaml`: checks the exported set (`make check-export`, `tests/check_export.sh`).
