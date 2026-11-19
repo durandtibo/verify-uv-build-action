@@ -156,7 +156,7 @@ setup() {
 }
 
 @test "tool_pin prints the pinned version of a tool" {
-	[[ "$(tool_pin twine)" =~ ^[0-9][0-9.]*$ ]]
-	[[ "$(tool_pin pyright)" =~ ^[0-9][0-9.]*$ ]]
+	[[ "$(tool_pin twine)" =~ ^[0-9][0-9.]*$ ]] || false
+	[[ "$(tool_pin pyright)" =~ ^[0-9][0-9.]*$ ]] || false
 	[ -z "$(tool_pin nope)" ]
 }

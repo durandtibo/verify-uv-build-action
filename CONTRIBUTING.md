@@ -98,7 +98,11 @@ verify-uv-build-action/
 ├── tests/
 │   ├── bats/             # Unit tests of the scripts, one file per script
 │   ├── cases.json        # End-to-end cases of ci-action.yaml
-│   └── check_action_case.sh # Assertions of ci-action.yaml, shared by the local and released runs
+│   ├── check_action_case.sh # Assertions of ci-action.yaml, shared by the local and released runs
+│   ├── check_bats_assertions.sh # Finds the bats assertions that pass vacuously on bash 3.2
+│   ├── check_export.sh   # Checks the files exported by git archive
+│   ├── mutation_check.sh # Breaks the scripts on purpose (mutants.txt) and runs the bats tests
+│   └── mutants.txt       # The mutations of mutation_check.sh
 ├── action.yaml           # Main action definition
 ├── Makefile             # Development commands
 ├── pyproject.toml       # Python project configuration
@@ -162,8 +166,11 @@ The action includes comprehensive test workflows:
 The repository includes several test workflows:
 
 - **CI (`ci.yaml`)**: Runs on all pull requests and pushes to main
-- **Format (`ci-format.yaml`)**: Validates shell, Markdown and YAML formatting
+- **Format (`ci-format.yaml`)**: Validates shell, Markdown and YAML formatting, and the bats
+  assertions (`make lint-bats`)
 - **Shell Unit Tests (`ci-shell.yaml`)**: Runs `make test-shell` (the bats tests) on multiple OS
+- **Mutation Check (`ci-mutation-check.yaml`)**: Breaks the scripts on purpose
+  (`make mutation-check`) and fails if the bats tests do not notice
 - **Test Action (`ci-action.yaml`)**: Tests the action in a real workflow. The input
   `use-released` selects the action from this checkout (default) or the latest release; the
   failure cases are rows of `tests/cases.json`

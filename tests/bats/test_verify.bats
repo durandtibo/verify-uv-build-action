@@ -103,7 +103,7 @@ count() {
 @test "succeeds with the defaults and a clean project" {
 	run bash "${VERIFY}"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"All checks passed"* ]]
+	[[ "$output" == *"All checks passed"* ]] || false
 }
 
 @test "all invalid inputs are reported together with exit 2" {
@@ -111,13 +111,13 @@ count() {
 		PROJECT_PATH="${WORK}/nope" TWINE_VERSION="--bad" PYRIGHT_VERSION="x y" \
 		run --separate-stderr bash "${VERIFY}"
 	[ "$status" -eq 2 ]
-	[[ "$stderr" == *"package-name"* ]]
-	[[ "$stderr" == *"module-name"* ]]
-	[[ "$stderr" == *"dist-type"* ]]
-	[[ "$stderr" == *"check-types"* ]]
-	[[ "$stderr" == *"project-path"* ]]
-	[[ "$stderr" == *"twine-version"* ]]
-	[[ "$stderr" == *"pyright-version"* ]]
+	[[ "$stderr" == *"package-name"* ]] || false
+	[[ "$stderr" == *"module-name"* ]] || false
+	[[ "$stderr" == *"dist-type"* ]] || false
+	[[ "$stderr" == *"check-types"* ]] || false
+	[[ "$stderr" == *"project-path"* ]] || false
+	[[ "$stderr" == *"twine-version"* ]] || false
+	[[ "$stderr" == *"pyright-version"* ]] || false
 	[ "$(count uv_build)" -eq 0 ]
 }
 
@@ -132,7 +132,7 @@ count() {
 	unset PACKAGE_NAME
 	SDIST_NAME=other run --separate-stderr bash "${VERIFY}"
 	[ "$status" -eq 1 ]
-	[[ "$stderr" == *"wrong package name in"* ]]
+	[[ "$stderr" == *"wrong package name in"* ]] || false
 }
 
 @test "an invalid package name is still rejected when set" {
@@ -161,25 +161,25 @@ count() {
 @test "build output with no wheel fails" {
 	WHEELS=0 run --separate-stderr bash "${VERIFY}"
 	[ "$status" -eq 1 ]
-	[[ "$stderr" == *"exactly 1 wheel"* ]]
+	[[ "$stderr" == *"exactly 1 wheel"* ]] || false
 }
 
 @test "build output with two wheels fails" {
 	WHEELS=2 run --separate-stderr bash "${VERIFY}"
 	[ "$status" -eq 1 ]
-	[[ "$stderr" == *"exactly 1 wheel"* ]]
+	[[ "$stderr" == *"exactly 1 wheel"* ]] || false
 }
 
 @test "build output with no sdist fails" {
 	SDISTS=0 run --separate-stderr bash "${VERIFY}"
 	[ "$status" -eq 1 ]
-	[[ "$stderr" == *"exactly 1 sdist"* ]]
+	[[ "$stderr" == *"exactly 1 sdist"* ]] || false
 }
 
 @test "a failing build fails" {
 	UV_STATUS=1 run --separate-stderr bash "${VERIFY}"
 	[ "$status" -eq 1 ]
-	[[ "$stderr" == *"uv build failed"* ]]
+	[[ "$stderr" == *"uv build failed"* ]] || false
 }
 
 @test "outputs hold the paths and the version of the wheel" {
@@ -230,7 +230,7 @@ count() {
 	VIRTUAL_ENV=/somewhere/else run bash "${VERIFY}"
 	[ "$status" -eq 0 ]
 	while IFS= read -r line; do
-		[[ "${line}" == *"--python ${WORK}/runner/verify-uv-build."*"/venv-"* ]]
+		[[ "${line}" == *"--python ${WORK}/runner/verify-uv-build."*"/venv-"* ]] || false
 	done <"${CALLS}/uv_install"
 }
 
@@ -274,21 +274,21 @@ count() {
 @test "an unknown extra fails before any install" {
 	PACKAGE_EXTRAS="missing" run --separate-stderr bash "${VERIFY}"
 	[ "$status" -eq 1 ]
-	[[ "$stderr" == *"extra not defined"* ]]
+	[[ "$stderr" == *"extra not defined"* ]] || false
 	[ "$(count uv_install)" -eq 0 ]
 }
 
 @test "wheel and sdist with different versions fail (regression G12)" {
 	WHEEL_VERSION=1.0 SDIST_VERSION=1.1 run --separate-stderr bash "${VERIFY}"
 	[ "$status" -eq 1 ]
-	[[ "$stderr" == *"different versions"* ]]
+	[[ "$stderr" == *"different versions"* ]] || false
 	[ "$(count uv_install)" -eq 0 ]
 }
 
 @test "the placeholder version fails" {
 	WHEEL_VERSION=0.0.0 SDIST_VERSION=0.0.0 run --separate-stderr bash "${VERIFY}"
 	[ "$status" -eq 1 ]
-	[[ "$stderr" == *"invalid version"* ]]
+	[[ "$stderr" == *"invalid version"* ]] || false
 }
 
 @test "twine runs with the requested version from the work directory" {
@@ -300,7 +300,7 @@ count() {
 @test "a twine failure exits 1 and skips the install" {
 	UVX_STATUS=1 run --separate-stderr bash "${VERIFY}"
 	[ "$status" -eq 1 ]
-	[[ "$stderr" == *"twine check failed"* ]]
+	[[ "$stderr" == *"twine check failed"* ]] || false
 	[ "$(count uv_install)" -eq 0 ]
 }
 
@@ -372,7 +372,7 @@ count() {
 	grep -Fq '## ❌ Verify uv build: failed in "Validate"' "${WORK}/summary"
 	grep -Fq -- "- ❌ Input 'dist-type'" "${WORK}/summary"
 	grep -Fq "| Build | skipped |" "${WORK}/summary"
-	! grep -Fq "<details>" "${WORK}/summary"
+	! grep -Fq "<details>" "${WORK}/summary" || false
 }
 
 @test "the summary marks check types as skipped when check-types is false" {
@@ -414,7 +414,7 @@ count() {
 }
 
 @test "verify.sh holds no default of an input (single source: action.yaml)" {
-	! grep -Eq '\$\{(PROJECT_PATH|DIST_TYPE|CHECK_TYPES|TWINE_VERSION|PYRIGHT_VERSION):-[^$}]' scripts/verify.sh
+	! grep -Eq '\$\{(PROJECT_PATH|DIST_TYPE|CHECK_TYPES|TWINE_VERSION|PYRIGHT_VERSION):-[^$}]' scripts/verify.sh || false
 }
 
 @test "the defaults come from action.yaml" {

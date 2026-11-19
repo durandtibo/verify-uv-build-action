@@ -25,19 +25,21 @@ maintainer review of the design (the properties P1 to P14 and the problems found
 properties T1 to T16); neither is part of the action.
 
 `tests/` also holds the maintainer helpers of the CI, not part of the action: `cases.json` (the
-action cases), `check_action_case.sh` (the assertions of `ci-action.yaml`) and `check_export.sh`
-(the exported set, see `.gitattributes`).
+action cases), `check_action_case.sh` (the assertions of `ci-action.yaml`), `check_export.sh` (the
+exported set, see `.gitattributes`), `check_bats_assertions.sh` (the bats assertions that pass
+vacuously on bash 3.2) and `mutation_check.sh` with its list `mutants.txt` (breaks the scripts on
+purpose and checks that the bats tests notice).
 
 ## Environment
 
 - Use the `Makefile`; run `make help` to list targets. It includes `.make/all.mk`, which defines
   `format`, `lint` and `install-tools`; the root `Makefile` only adds the targets of this repo
-  (`check-export`, `test-shell`, `test`, `all`, `clean`). `make install-tools` installs the lint and
-  format tools.
+  (`lint-bats`, `mutation-check`, `check-export`, `test-shell`, `test`, `all`, `clean`).
+  `make install-tools` installs the lint and format tools.
 - Do not edit `.make/`: it is a shared directory of makefiles synced by
   `bot-sync-shared-makefile.yaml`. Change the root `Makefile` instead.
-- Run `make format` and `make lint` before committing. Fix what they report instead of disabling
-  rules.
+- Run `make format`, `make lint` and `make lint-bats` before committing. Fix what they report
+  instead of disabling rules.
 - Run the shell tests with `make test-shell` or `bats tests/bats/` (install `bats-core` with
   `make install-bats` if missing). Some workflows and the action itself cannot be run locally; say
   so in the PR instead of claiming they pass.
@@ -101,9 +103,12 @@ Files are prefixed by role:
 - `ci.yaml`: entry point for pull requests, pushes to `main`, a nightly schedule and manual runs. It
   holds no steps, only jobs that call the reusable `ci-*.yaml` workflows below.
   - `ci-format.yaml`: two jobs, `make format` followed by `git diff --exit-code` (the files are
-    formatted) and `make lint` (shell, Markdown, YAML, Makefile, TOML and workflow linters).
+    formatted) and `make lint` (shell, Markdown, YAML, Makefile, TOML and workflow linters) plus
+    `make lint-bats` (the bats assertions).
   - `ci-shell.yaml`: bats tests on the OS matrix.
   - `ci-shell-bash32.yaml`: bats tests on macOS with the system bash 3.2.
+  - `ci-mutation-check.yaml`: breaks the scripts of `scripts/` on purpose (`tests/mutants.txt`) and
+    fails if the bats tests do not notice (`make mutation-check`, `tests/mutation_check.sh`).
   - `ci-export.yaml`: checks the exported set (`make check-export`, `tests/check_export.sh`).
   - `ci-action.yaml`: one file that tests both versions of the action, selected by the boolean
     input `use-released` (default `false`). `ci.yaml` calls it with `false`: the action from this
@@ -143,11 +148,18 @@ Conventions:
 ## Tests
 
 - Each script in `scripts/` has its own `tests/bats/test_<script_name>.bats` file.
+- End an assertion that is not the last command of a test (`[[ ... ]]` or `! cmd`) with
+  `|| false`: on bash 3.2 (macOS) a failing one does not fail the test otherwise. `make lint-bats`
+  checks it.
 - One behaviour per test; build small throwaway wheels/sdists or mock external commands rather than
   calling the network.
 - Cover success, failure, and edge cases (missing extras, empty lists, missing or invalid files).
 - Every bug fix needs a regression test that fails without the fix.
 - If a check fails for a real reason, report it rather than weakening the test.
+- When a decision of a script changes (a comparison, an error path, a default), update its line in
+  `tests/mutants.txt` (`name@@script@@test file(s)@@sed -E expression`, portable `sed` only). Run
+  `make mutation-check`: a surviving mutation is a test that does not check what its name says, so
+  fix the test, not the list.
 - Changes to `verify.sh` are tested with `uv`/`uvx` mocked on `PATH` (`tests/bats/test_verify.bats`).
 - Changes to `action.yaml` behaviour are covered by the `ci-action.yaml` matrix; extend it when
   adding an input or a check.
@@ -213,7 +225,7 @@ Rules:
 
 ## Reporting
 
-- State which checks ran (`make lint`, `make format`, `make check-export`, `bats tests/bats/`) and
-  which did not.
+- State which checks ran (`make lint`, `make format`, `make lint-bats`, `make check-export`,
+  `make mutation-check`, `bats tests/bats/`) and which did not.
 - Note that CI was not awaited.
 - Report failures that already exist on `main` rather than hiding them.

@@ -26,7 +26,7 @@ make_repo() {
 	cd "${REPO_ROOT}"
 	run "${SCRIPT}"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"scripts/verify.sh"* ]]
+	[[ "$output" == *"scripts/verify.sh"* ]] || false
 }
 
 @test "passes when only the needed files are exported" {
@@ -39,13 +39,13 @@ make_repo() {
 	make_repo $'/scripts/lib.sh export-ignore\n'
 	run "${SCRIPT}"
 	[ "$status" -eq 1 ]
-	[[ "$output" == *"❌"* ]]
-	[[ "$output" == *"scripts/lib.sh"* ]]
+	[[ "$output" == *"❌"* ]] || false
+	[[ "$output" == *"scripts/lib.sh"* ]] || false
 }
 
 @test "fails when an unneeded file is exported" {
 	make_repo ''
 	run "${SCRIPT}"
 	[ "$status" -eq 1 ]
-	[[ "$output" == *".gitattributes"* ]]
+	[[ "$output" == *".gitattributes"* ]] || false
 }

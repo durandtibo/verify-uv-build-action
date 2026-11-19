@@ -73,7 +73,7 @@ make_sdist() {
 	f="$(make_wheel mypkg 1.0 mypkg numpy)"
 	run call check_dist "$f" mypkg mypkg numpy
 	[ "$status" -eq 0 ]
-	[[ "$output" =~ "✅" ]]
+	[[ "$output" =~ "✅" ]] || false
 }
 
 @test "sdist ok" {
@@ -86,15 +86,15 @@ make_sdist() {
 	f="$(make_wheel other 1.0 other)"
 	run --separate-stderr call check_dist "$f" mypkg other
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "❌ wrong package name" ]]
-	[[ "$stderr" =~ "expected mypkg, got other" ]]
+	[[ "$stderr" =~ "❌ wrong package name" ]] || false
+	[[ "$stderr" =~ "expected mypkg, got other" ]] || false
 }
 
 @test "sdist with wrong name fails" {
 	f="$(make_sdist other 1.0 other)"
 	run --separate-stderr call check_dist "$f" mypkg other
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "wrong package name" ]]
+	[[ "$stderr" =~ "wrong package name" ]] || false
 }
 
 @test "package name is compared in normalized form" {
@@ -107,7 +107,14 @@ make_sdist() {
 	f="$(make_wheel mypkg 0.0.0 mypkg)"
 	run --separate-stderr call check_dist "$f" mypkg
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "invalid version" ]]
+	[[ "$stderr" =~ "invalid version" ]] || false
+}
+
+@test "wheel with an empty version fails" {
+	f="$(make_wheel mypkg "" mypkg)"
+	run --separate-stderr call check_dist "$f" mypkg
+	[ "$status" -eq 1 ]
+	[[ "$stderr" =~ "got <none>" ]] || false
 }
 
 @test "sdist version 0.0.0 fails" {
@@ -120,14 +127,14 @@ make_sdist() {
 	f="$(make_wheel mypkg 1.0 mypkg numpy)"
 	run --separate-stderr call check_dist "$f" mypkg mypkg "numpy,torch"
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "expected torch" ]]
+	[[ "$stderr" =~ "expected torch" ]] || false
 }
 
 @test "sdist with missing extra fails" {
 	f="$(make_sdist mypkg 1.0 mypkg numpy)"
 	run --separate-stderr call check_dist "$f" mypkg mypkg torch
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "extra not defined" ]]
+	[[ "$stderr" =~ "extra not defined" ]] || false
 }
 
 @test "extra with different case and separator passes" {
@@ -158,7 +165,7 @@ make_sdist() {
 	f="$(make_wheel mypkg 1.0 -)"
 	run --separate-stderr call check_dist "$f" mypkg
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "expected mypkg/py.typed" ]]
+	[[ "$stderr" =~ "expected mypkg/py.typed" ]] || false
 }
 
 @test "py.typed in an unrelated directory fails (F5)" {
@@ -171,7 +178,7 @@ make_sdist() {
 	f="$(make_wheel mypkg 1.0 tests/mypkg)"
 	run --separate-stderr call check_dist "$f" mypkg
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "py.typed marker missing" ]]
+	[[ "$stderr" =~ "py.typed marker missing" ]] || false
 }
 
 @test "sdist without py.typed passes: only the wheel is checked (regression G4)" {
@@ -238,30 +245,30 @@ make_sdist() {
 	f="$(make_wheel other 0.0.0 -)"
 	run --separate-stderr call check_dist "$f" mypkg mypkg torch
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "wrong package name" ]]
-	[[ "$stderr" =~ "invalid version" ]]
-	[[ "$stderr" =~ "extra not defined" ]]
-	[[ "$stderr" =~ "py.typed marker missing" ]]
+	[[ "$stderr" =~ "wrong package name" ]] || false
+	[[ "$stderr" =~ "invalid version" ]] || false
+	[[ "$stderr" =~ "extra not defined" ]] || false
+	[[ "$stderr" =~ "py.typed marker missing" ]] || false
 }
 
 @test "missing file fails" {
 	run --separate-stderr call check_dist "${WORK}/nope.whl" mypkg
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "archive not found" ]]
+	[[ "$stderr" =~ "archive not found" ]] || false
 }
 
 @test "wrong extension fails" {
 	touch "${WORK}/file.zip"
 	run --separate-stderr call check_dist "${WORK}/file.zip" mypkg
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "unsupported archive type" ]]
+	[[ "$stderr" =~ "unsupported archive type" ]] || false
 }
 
 @test "sdist without PKG-INFO fails" {
 	PKGINFO=0 f="$(PKGINFO=0 make_sdist mypkg 1.0 mypkg)"
 	run --separate-stderr call check_dist "$f" mypkg
 	[ "$status" -eq 1 ]
-	[[ "$stderr" =~ "core metadata file not found" ]]
+	[[ "$stderr" =~ "core metadata file not found" ]] || false
 }
 
 @test "headers after the first blank line are ignored" {
