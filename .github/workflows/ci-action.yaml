@@ -342,7 +342,9 @@ jobs:
   #####################################
 
   # Edge case on one runner: the tool version inputs are wired to uvx. The released action does
-  # not have these inputs yet.
+  # not have these inputs yet. twine must be 7.0.0 or newer: older versions reject the metadata
+  # version 2.5 that uv writes. The wiring of twine-version is also proven by the unknown version
+  # case of tests/cases.json.
   test-tool-versions:
     if: ${{ !inputs.use-released }}
     permissions:
@@ -357,7 +359,7 @@ jobs:
         uses: ./
         with:
           package-name: myproject
-          twine-version: 6.2.0
+          twine-version: 7.0.0
           pyright-version: 1.1.413
 
   # Regression G1: a second invocation in the same job must not delete the files of the first
