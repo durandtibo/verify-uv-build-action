@@ -198,8 +198,10 @@ check_archives() {
 		status=1
 	fi
 	[ "${status}" -eq 0 ] || return 1
+	# --python 3.13: run twine in a standard CPython, not the (possibly free-threaded) Python of the
+	# caller, where its dependency nh3 has no wheel and fails to build.
 	echo "🔍 Running twine check..."
-	if ! (cd "${WORK}" && uvx --no-config "twine@${TWINE_VERSION}" check --strict "${WHEEL_PATH}" "${SDIST_PATH}"); then
+	if ! (cd "${WORK}" && uvx --no-config --python 3.13 "twine@${TWINE_VERSION}" check --strict "${WHEEL_PATH}" "${SDIST_PATH}"); then
 		log_error "twine check failed (expected no error or warning, see output above)"
 		return 1
 	fi

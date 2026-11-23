@@ -297,6 +297,11 @@ count() {
 	grep -Fq "cwd=${WORK}/runner/verify-uv-build." "${CALLS}/uvx"
 }
 
+@test "twine runs in a standard Python, not the free-threaded one of the caller" {
+	UV_PYTHON=3.13t run bash "${VERIFY}"
+	grep -Fq -- "--python 3.13 twine@" "${CALLS}/uvx"
+}
+
 @test "a twine failure exits 1 and skips the install" {
 	UVX_STATUS=1 run --separate-stderr bash "${VERIFY}"
 	[ "$status" -eq 1 ]
